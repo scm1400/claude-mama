@@ -34,7 +34,8 @@ function createWindow(): BrowserWindow {
     win.loadURL('http://localhost:5173');
     win.webContents.openDevTools({ mode: 'detach' });
   } else {
-    win.loadFile(path.join(__dirname, '../renderer/index.html'));
+    // app.getAppPath() = project root; dist/renderer/index.html from there
+    win.loadFile(path.join(app.getAppPath(), 'dist/renderer/index.html'));
   }
 
   return win;
