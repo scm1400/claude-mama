@@ -1,0 +1,33 @@
+appId: com.claudemama.app
+productName: Claude Mama
+directories:
+  output: release
+files:
+  - dist/**/*
+  - package.json
+  - "!dist/renderer/**/*.map"
+asar: true
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: build/icon.png
+  category: public.app-category.utilities
+nsis:
+  oneClick: true
+  allowToChangeInstallationDirectory: false
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+dmg:
+  writeUpdateInfo: false
+extraMetadata:
+  main: dist/main/main/main.js

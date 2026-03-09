@@ -1,6 +1,29 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useMamaState } from './hooks/useMamaState';
+import { Character } from './components/Character';
+import { SpeechBubble } from './components/SpeechBubble';
+import { UsageIndicator } from './components/UsageIndicator';
+import Settings from './pages/Settings';
+import { Locale } from '../shared/types';
+import { t } from '../shared/i18n';
 
-export default function App() {
+function MainView() {
+  const mamaState = useMamaState();
+  const [locale, setLocale] = useState<Locale>('ko');
+
+  useEffect(() => {
+    window.electronAPI.getSettings().then((s) => {
+      if (s && (s as { locale?: Locale }).locale) {
+        setLocale((s as { locale: Locale }).locale);
+      }
+    });
+  }, []);
+
+  const mood = mamaState?.mood ?? 'sleeping';
+  const message = mamaState?.message ?? t(locale, 'loading_message');
+  const utilizationPercent = mamaState?.utilizationPercent ?? 0;
+  const dataSource = mamaState?.dataSource ?? 'none';
+
   return (
     <div
       style={{
@@ -9,43 +32,48 @@ export default function App() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'flex-end',
-        paddingBottom: '20px',
+        justifyContent: 'center',
         background: 'transparent',
+        gap: 0,
+        padding: '12px 0',
       }}
     >
-      {/* Placeholder circle representing Claude Mama */}
-      <div
-        style={{
-          width: 120,
-          height: 120,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle at 35% 35%, #a78bfa, #7c3aed)',
-          boxShadow: '0 8px 32px rgba(124, 58, 237, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: 12,
-        }}
-      >
-        <span style={{ fontSize: 48 }}>🤖</span>
-      </div>
+      {/* Speech bubble appears above the character */}
+      <SpeechBubble message={message} mood={mood} />
 
-      <div
-        style={{
-          background: 'rgba(0, 0, 0, 0.65)',
-          backdropFilter: 'blur(8px)',
-          borderRadius: 8,
-          padding: '6px 12px',
-          color: '#e2e8f0',
-          fontSize: 12,
-          fontFamily: 'system-ui, sans-serif',
-          textAlign: 'center',
-          maxWidth: 200,
-        }}
-      >
-        Claude Mama Loading...
-      </div>
+      {/* Small gap between bubble tail and character */}
+      <div style={{ height: 10 }} />
+
+      {/* Character face */}
+      <Character expression={mood} />
+
+      {/* Usage bar below the character */}
+      <UsageIndicator
+        utilizationPercent={utilizationPercent}
+        mood={mood}
+        dataSource={dataSource}
+        locale={locale}
+      />
     </div>
   );
+}
+
+function getHash(): string {
+  return window.location.hash.replace(/^#\/?/, '');
+}
+
+export default function App() {
+  const [hash, setHash] = useState(getHash);
+
+  useEffect(() => {
+    const handleHashChange = () => setHash(getHash());
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  if (hash === 'settings') {
+    return <Settings />;
+  }
+
+  return <MainView />;
 }

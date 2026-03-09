@@ -4,12 +4,16 @@
   "description": "Claude API usage monitor desktop widget",
   "main": "dist/main/main/main.js",
   "scripts": {
-    "dev": "concurrently -k -n VITE,ELECTRON -c cyan,yellow \"vite\" \"cross-env NODE_ENV=development tsx src/main/main.ts\"",
+    "dev": "npm run build:main && concurrently -k -n VITE,ELECTRON -c cyan,yellow \"vite\" \"cross-env NODE_ENV=development electron dist/main/main/main.js\"",
     "build:renderer": "vite build",
     "build:main": "tsc -p tsconfig.main.json",
     "build": "npm run build:renderer && npm run build:main",
     "start": "electron dist/main/main/main.js",
-    "test": "echo \"No tests yet\""
+    "test": "vitest run",
+    "make-icon": "node scripts/make-icon.js",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:all": "electron-builder --win --mac"
   },
   "keywords": [],
   "author": "",
@@ -23,13 +27,16 @@
     "cross-env": "^10.1.0",
     "electron": "^40.8.0",
     "electron-builder": "^26.8.1",
+    "sharp": "^0.34.5",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
   },
   "dependencies": {
+    "auto-launch": "^5.0.6",
+    "electron-store": "8.2.0",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "electron-store": "8.2.0"
+    "react-dom": "^19.2.4"
   }
 }

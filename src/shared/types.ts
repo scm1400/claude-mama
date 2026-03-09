@@ -16,16 +16,20 @@ export interface MamaState {
   error: string | null;
 }
 
+export type Locale = 'ko' | 'en' | 'ja' | 'zh';
+
 /** User preferences (persisted via electron-store) */
 export interface MamaSettings {
   position: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
   autoStart: boolean;
   characterVisible: boolean;
+  locale: Locale;
 }
 
 /** IPC channel names */
 export const IPC_CHANNELS = {
   MAMA_STATE_UPDATE: 'mama:state-update',
+  MAMA_STATE_GET: 'mama:state-get',
   SETTINGS_GET: 'mama:settings-get',
   SETTINGS_SET: 'mama:settings-set',
   SHOW_SETTINGS: 'mama:show-settings',

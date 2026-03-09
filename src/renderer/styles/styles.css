@@ -1,0 +1,79 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-app-region: no-drag;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
+
+/* Character idle breathing animation */
+@keyframes breathe {
+  0%, 100% { transform: scale(1.0); }
+  50% { transform: scale(1.03); }
+}
+
+/* Steam puffs for angry */
+@keyframes steamPuff {
+  0% { transform: translateY(0) scale(1); opacity: 0.8; }
+  100% { transform: translateY(-20px) scale(1.5); opacity: 0; }
+}
+
+/* Sweat drop for worried */
+@keyframes sweatDrop {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(10px); opacity: 0; }
+}
+
+/* Sparkle for proud */
+@keyframes sparkle {
+  0%, 100% { transform: scale(0) rotate(0deg); opacity: 0; }
+  50% { transform: scale(1) rotate(180deg); opacity: 1; }
+}
+
+/* Zzz for sleeping */
+@keyframes zzz {
+  0% { transform: translateY(0) translateX(0) scale(0.6); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translateY(-25px) translateX(12px) scale(1); opacity: 0; }
+}
+
+/* Question mark float for confused */
+@keyframes floatQuestion {
+  0%, 100% { transform: translateY(0); opacity: 0.8; }
+  50% { transform: translateY(-6px); opacity: 1; }
+}
+
+/* Tear of joy drop for proud */
+@keyframes tearDrop {
+  0% { transform: translateY(0); opacity: 0.9; }
+  100% { transform: translateY(12px); opacity: 0; }
+}
+
+/* Speech bubble fade in/out */
+@keyframes bubbleFadeIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes bubbleFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* Rosy cheeks pulse for happy */
+@keyframes cheekPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.8; }
+}
