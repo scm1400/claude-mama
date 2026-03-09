@@ -22,6 +22,7 @@ function MainView() {
   const mood = mamaState?.mood ?? 'sleeping';
   const message = mamaState?.message ?? t(locale, 'loading_message');
   const utilizationPercent = mamaState?.utilizationPercent ?? 0;
+  const fiveHourPercent = mamaState?.fiveHourPercent ?? null;
   const dataSource = mamaState?.dataSource ?? 'none';
 
   return (
@@ -50,6 +51,8 @@ function MainView() {
       {/* Usage bar below the character */}
       <UsageIndicator
         utilizationPercent={utilizationPercent}
+        fiveHourPercent={fiveHourPercent}
+        resetsAt={mamaState?.resetsAt ?? null}
         mood={mood}
         dataSource={dataSource}
         locale={locale}
