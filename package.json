@@ -36,6 +36,7 @@
   "dependencies": {
     "auto-launch": "^5.0.6",
     "electron-store": "8.2.0",
+    "electron-updater": "^6.8.3",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   }

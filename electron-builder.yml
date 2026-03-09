@@ -7,6 +7,10 @@ files:
   - package.json
   - "!dist/renderer/**/*.map"
 asar: true
+publish:
+  provider: github
+  owner: scm1400
+  repo: claude-mama
 win:
   target:
     - target: nsis

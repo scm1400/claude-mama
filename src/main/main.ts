@@ -6,6 +6,7 @@ import { computeMood } from '../core/mood-engine';
 import { IPC_CHANNELS, MamaState } from '../shared/types';
 import { createTray } from './tray';
 import { syncAutoLaunch } from './auto-launch';
+import { initAutoUpdater } from './auto-updater';
 
 const isDev = !app.isPackaged;
 
@@ -74,6 +75,9 @@ app.whenReady().then(async () => {
   // Sync auto-launch on startup based on stored preference
   const settings = getStore().store;
   await syncAutoLaunch(settings.autoStart);
+
+  // Check for updates
+  initAutoUpdater();
 
   // Start polling after window is ready to receive messages
   win.webContents.once('did-finish-load', () => {
