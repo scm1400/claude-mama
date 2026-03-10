@@ -20,6 +20,7 @@ import * as https from 'https';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { execSync } from 'child_process';
 
 export interface UsageData {
   weeklyUtilization: number | null;
@@ -53,7 +54,7 @@ const STATS_CACHE_PATH = path.join(os.homedir(), '.claude', 'stats-cache.json');
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
-function readAccessToken(): string | null {
+function readAccessTokenFromFile(): string | null {
   try {
     const raw = fs.readFileSync(CREDENTIALS_PATH, 'utf8');
     const parsed = JSON.parse(raw);
@@ -63,19 +64,104 @@ function readAccessToken(): string | null {
   }
 }
 
-function readAccessTokenWithRetry(): string | null {
-  const token = readAccessToken();
-  if (token !== null) return token;
-  // EBUSY retry on Windows — small delay then retry once
+// macOS Keychain — use absolute path to avoid PATH issues in packaged apps
+const SECURITY_BIN = '/usr/bin/security';
+const KEYCHAIN_SERVICE = 'Claude Code-credentials';
+let keychainCache: { token: string; readAt: number } | null = null;
+const KEYCHAIN_CACHE_TTL_MS = 4 * 60 * 1000; // cache for 4 min (poll is every 5 min)
+
+function readAccessTokenFromKeychain(): string | null {
+  // Return cached value if fresh enough
+  if (keychainCache && Date.now() - keychainCache.readAt < KEYCHAIN_CACHE_TTL_MS) {
+    return keychainCache.token;
+  }
   try {
-    const start = Date.now();
-    while (Date.now() - start < 50) { /* busy wait ~50ms */ }
-    const raw = fs.readFileSync(CREDENTIALS_PATH, 'utf8');
+    if (!fs.existsSync(SECURITY_BIN)) {
+      console.log('[usage-tracker] security binary not found at', SECURITY_BIN);
+      return null;
+    }
+    const raw = execSync(
+      `${SECURITY_BIN} find-generic-password -s "${KEYCHAIN_SERVICE}" -w`,
+      { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] },
+    ).trim();
+    const parsed = JSON.parse(raw);
+    const token = parsed?.claudeAiOauth?.accessToken ?? null;
+    if (token) {
+      keychainCache = { token, readAt: Date.now() };
+    }
+    return token;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Distinguish between "not found" vs "keychain locked" vs other errors
+    if (msg.includes('could not be found')) {
+      console.log('[usage-tracker] Keychain: no Claude Code credentials entry found');
+    } else if (msg.includes('User interaction is not allowed') || msg.includes('errSecInteractionNotAllowed')) {
+      console.log('[usage-tracker] Keychain: locked or interaction not allowed (screen locked?)');
+    } else {
+      console.log('[usage-tracker] Keychain read failed:', msg.slice(0, 150));
+    }
+    return null;
+  }
+}
+
+// Linux — try secret-tool (libsecret / GNOME Keyring / KDE Wallet)
+function readAccessTokenFromSecretTool(): string | null {
+  try {
+    const raw = execSync(
+      'secret-tool lookup service "Claude Code-credentials"',
+      { encoding: 'utf8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] },
+    ).trim();
+    if (!raw) return null;
     const parsed = JSON.parse(raw);
     return parsed?.claudeAiOauth?.accessToken ?? null;
   } catch {
     return null;
   }
+}
+
+function readAccessToken(): string | null {
+  // 1) Try credentials file (works on all platforms)
+  const fromFile = readAccessTokenFromFile();
+  if (fromFile) {
+    console.log('[usage-tracker] Token source: credentials file');
+    return fromFile;
+  }
+  // 2) macOS: Keychain
+  if (process.platform === 'darwin') {
+    const fromKeychain = readAccessTokenFromKeychain();
+    if (fromKeychain) {
+      console.log('[usage-tracker] Token source: macOS Keychain');
+      return fromKeychain;
+    }
+  }
+  // 3) Linux: secret-tool (libsecret)
+  if (process.platform === 'linux') {
+    const fromSecret = readAccessTokenFromSecretTool();
+    if (fromSecret) {
+      console.log('[usage-tracker] Token source: secret-tool (libsecret)');
+      return fromSecret;
+    }
+  }
+  console.log('[usage-tracker] No credentials found (tried: file' +
+    (process.platform === 'darwin' ? ', keychain' : '') +
+    (process.platform === 'linux' ? ', secret-tool' : '') + ')');
+  return null;
+}
+
+function readAccessTokenWithRetry(): string | null {
+  const token = readAccessToken();
+  if (token !== null) return token;
+  // EBUSY retry on Windows — small delay then retry once
+  if (process.platform === 'win32') {
+    try {
+      const start = Date.now();
+      while (Date.now() - start < 50) { /* busy wait ~50ms */ }
+      return readAccessTokenFromFile();
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 function httpsGet(url: string, token: string): Promise<{ status: number; body: string }> {
