@@ -118,6 +118,52 @@ export function OfflineLabel({ locale = 'ko' }: { locale?: Locale }) {
   );
 }
 
+/** Compact single-line bar for mini mode */
+export function MiniBar({ utilizationPercent, mood }: {
+  utilizationPercent: number;
+  mood: Expression;
+}) {
+  const clamped = clamp(utilizationPercent);
+  const color = MOOD_COLORS[mood] ?? '#9ca3af';
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 4,
+      background: 'rgba(0, 0, 0, 0.65)',
+      borderRadius: 6,
+      padding: '3px 6px',
+      backdropFilter: 'blur(6px)',
+      border: '1px solid rgba(255, 255, 255, 0.1)',
+    }}>
+      <div style={{
+        width: 36,
+        height: 5,
+        background: 'rgba(255, 255, 255, 0.25)',
+        borderRadius: 3,
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          height: '100%',
+          width: `${clamped}%`,
+          background: color,
+          borderRadius: 3,
+          transition: 'width 0.5s ease',
+        }} />
+      </div>
+      <span style={{
+        fontSize: 9,
+        color: '#ffffff',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        fontWeight: 700,
+        textShadow: '0 1px 3px rgba(0,0,0,1)',
+      }}>
+        {clamped.toFixed(0)}%
+      </span>
+    </div>
+  );
+}
+
 const styles: Record<string, CSSProperties> = {
   panel: {
     display: 'flex',

@@ -21,7 +21,6 @@ export type Locale = 'ko' | 'en' | 'ja' | 'zh';
 
 /** User preferences (persisted via electron-store) */
 export interface MamaSettings {
-  position: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
   autoStart: boolean;
   characterVisible: boolean;
   locale: Locale;
@@ -78,4 +77,8 @@ export const IPC_CHANNELS = {
   COLLECTION_GET: 'mama:collection-get',
   COLLECTION_UPDATED: 'mama:collection-updated',
   SHARE_CARD: 'mama:share-card',
+  SET_IGNORE_MOUSE: 'mama:set-ignore-mouse',
+  SAVE_POSITION: 'mama:save-position',
+  MOVE_WINDOW: 'mama:move-window',
+  SHOW_CONTEXT_MENU: 'mama:show-context-menu',
 } as const;

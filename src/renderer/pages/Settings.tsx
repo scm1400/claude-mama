@@ -3,18 +3,10 @@ import { MamaSettings, MamaState, Locale } from '../../shared/types';
 import { t, LOCALE_LABELS, UIStringKey } from '../../shared/i18n';
 import Collection from './Collection';
 
-const POSITIONS: MamaSettings['position'][] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
 const LOCALES: Locale[] = ['ko', 'en', 'ja', 'zh'];
-const POS_KEYS: Record<MamaSettings['position'], UIStringKey> = {
-  'bottom-right': 'pos_bottom_right',
-  'bottom-left': 'pos_bottom_left',
-  'top-right': 'pos_top_right',
-  'top-left': 'pos_top_left',
-};
 
 export default function Settings() {
   const [settings, setSettings] = useState<MamaSettings>({
-    position: 'bottom-right',
     autoStart: true,
     characterVisible: true,
     locale: 'ko',
@@ -100,25 +92,6 @@ export default function Settings() {
                   onClick={() => setSettings((prev) => ({ ...prev, locale: loc }))}
                 >
                   {LOCALE_LABELS[loc]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Position */}
-          <div style={s.card}>
-            <div style={s.cardLabel}>{i('settings_position')}</div>
-            <div style={s.posGrid}>
-              {POSITIONS.map((pos) => (
-                <button
-                  key={pos}
-                  style={{
-                    ...s.posBtn,
-                    ...(settings.position === pos ? s.posBtnActive : {}),
-                  }}
-                  onClick={() => setSettings((prev) => ({ ...prev, position: pos }))}
-                >
-                  {i(POS_KEYS[pos])}
                 </button>
               ))}
             </div>

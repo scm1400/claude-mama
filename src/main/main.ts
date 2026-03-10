@@ -1,10 +1,11 @@
-import { app, BrowserWindow, ipcMain, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, screen, Menu } from 'electron';
 import path from 'path';
 import { registerIpcHandlers, getStore } from './ipc-handlers';
+import { showSettingsWindow } from './settings-window';
 import { UsageTracker } from '../core/usage-tracker';
 import { computeMood } from '../core/mood-engine';
 import { getCurrentCommonQuoteId } from '../core/messages';
-import { IPC_CHANNELS, MamaState, TriggerContext, DailyUtilRecord } from '../shared/types';
+import { IPC_CHANNELS, MamaState, TriggerContext, DailyUtilRecord, Locale } from '../shared/types';
 import { createTray } from './tray';
 import { syncAutoLaunch } from './auto-launch';
 import { initAutoUpdater } from './auto-updater';
@@ -83,15 +84,27 @@ function broadcastState(): void {
 }
 
 function createWindow(): BrowserWindow {
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-  const winWidth = 250;
-  const winHeight = 300;
+  const winWidth = 200;
+  const winHeight = 250;
+
+  const store = getStore();
+  const savedPos = (store as any).get('windowPosition', null) as { x: number; y: number } | null;
+
+  let x: number, y: number;
+  if (savedPos) {
+    x = savedPos.x;
+    y = savedPos.y;
+  } else {
+    const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+    x = width - winWidth - 16;
+    y = height - winHeight - 16;
+  }
 
   const win = new BrowserWindow({
     width: winWidth,
     height: winHeight,
-    x: width - winWidth - 16,
-    y: height - winHeight - 16,
+    x,
+    y,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
@@ -105,6 +118,7 @@ function createWindow(): BrowserWindow {
     },
   });
 
+  // Start click-through; renderer hit-test will toggle off when cursor enters character
   win.setIgnoreMouseEvents(true, { forward: true });
 
   if (isDev) {
@@ -147,6 +161,70 @@ app.whenReady().then(async () => {
 
   // Register IPC handlers with main window so position changes can be applied
   registerIpcHandlers(win, collectionManager);
+
+  // Dynamic mouse event switching (hit-test pattern)
+  ipcMain.on(IPC_CHANNELS.SET_IGNORE_MOUSE, (_event, ignore: boolean) => {
+    if (win && !win.isDestroyed()) {
+      if (ignore) {
+        win.setIgnoreMouseEvents(true, { forward: true });
+      } else {
+        win.setIgnoreMouseEvents(false);
+      }
+    }
+  });
+
+  // Save window position with multi-monitor bounds clamping
+  ipcMain.on(IPC_CHANNELS.SAVE_POSITION, (_event, rawX: number, rawY: number) => {
+    const display = screen.getDisplayNearestPoint({ x: rawX, y: rawY });
+    const { x: areaX, y: areaY, width: areaW, height: areaH } = display.workArea;
+    const [winW, winH] = [200, 250];
+    const x = Math.max(areaX, Math.min(rawX, areaX + areaW - winW));
+    const y = Math.max(areaY, Math.min(rawY, areaY + areaH - winH));
+
+    const store = getStore();
+    (store as any).set('windowPosition', { x, y });
+
+    if (win && !win.isDestroyed() && (x !== rawX || y !== rawY)) {
+      win.setPosition(x, y);
+    }
+  });
+
+  // Move window (manual drag from renderer)
+  ipcMain.on(IPC_CHANNELS.MOVE_WINDOW, (_event, x: number, y: number) => {
+    if (win && !win.isDestroyed()) {
+      win.setPosition(Math.round(x), Math.round(y));
+    }
+  });
+
+  // Clamp window position after every drag move
+  win.on('moved', () => {
+    if (win.isDestroyed()) return;
+    const [rawX, rawY] = win.getPosition();
+    const display = screen.getDisplayNearestPoint({ x: rawX, y: rawY });
+    const { x: areaX, y: areaY, width: areaW, height: areaH } = display.workArea;
+    const [winW, winH] = [200, 250];
+    const x = Math.max(areaX, Math.min(rawX, areaX + areaW - winW));
+    const y = Math.max(areaY, Math.min(rawY, areaY + areaH - winH));
+
+    if (x !== rawX || y !== rawY) {
+      win.setPosition(x, y);
+    }
+    (getStore() as any).set('windowPosition', { x, y });
+  });
+
+  // Right-click context menu on character
+  ipcMain.on(IPC_CHANNELS.SHOW_CONTEXT_MENU, () => {
+    const locale = (getStore() as any).get('locale', 'ko') as Locale;
+    const menu = Menu.buildFromTemplate([
+      { label: 'Settings...', click: () => showSettingsWindow() },
+      { type: 'separator' },
+      { label: win.isVisible() ? 'Hide Mama' : 'Show Mama', click: () => {
+        if (win.isVisible()) win.hide(); else win.show();
+      }},
+      { label: 'Quit', click: () => app.quit() },
+    ]);
+    menu.popup({ window: win });
+  });
 
   // Return current state on demand (for settings window)
   ipcMain.handle(IPC_CHANNELS.MAMA_STATE_GET, () => lastMamaState);

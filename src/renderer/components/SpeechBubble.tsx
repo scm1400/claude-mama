@@ -3,16 +3,18 @@ import React, { useEffect, useRef, useState, CSSProperties } from 'react';
 interface SpeechBubbleProps {
   message: string;
   mood: string;
+  tailDirection?: 'up' | 'down';
+  onComplete?: () => void;
 }
 
-export function SpeechBubble({ message, mood }: SpeechBubbleProps) {
+export function SpeechBubble({ message, mood, tailDirection = 'down', onComplete }: SpeechBubbleProps) {
   const [displayedText, setDisplayedText] = useState('');
   const [visible, setVisible] = useState(true);
   const [animState, setAnimState] = useState<'in' | 'visible' | 'out'>('in');
   const typewriterRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prevMessageRef = useRef<string>('');
-  const prevMoodRef = useRef<string>('');
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   // Split message into Unicode code points (handles multi-byte Korean correctly)
   const codePoints = (str: string): string[] => {
@@ -20,11 +22,6 @@ export function SpeechBubble({ message, mood }: SpeechBubbleProps) {
   };
 
   useEffect(() => {
-    // Only restart if message or mood changed
-    if (message === prevMessageRef.current && mood === prevMoodRef.current) return;
-    prevMessageRef.current = message;
-    prevMoodRef.current = mood;
-
     // Clear existing timers
     if (typewriterRef.current) clearTimeout(typewriterRef.current);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
@@ -48,7 +45,10 @@ export function SpeechBubble({ message, mood }: SpeechBubbleProps) {
         // Auto-hide after 5 seconds
         hideTimerRef.current = setTimeout(() => {
           setAnimState('out');
-          setTimeout(() => setVisible(false), 400);
+          setTimeout(() => {
+            setVisible(false);
+            onCompleteRef.current?.();
+          }, 400);
         }, 4000);
       }
     };
@@ -132,12 +132,12 @@ export function SpeechBubble({ message, mood }: SpeechBubbleProps) {
       : animState === 'out'
         ? 'bubbleFadeOut 0.4s ease forwards'
         : 'none',
-    marginBottom: 8,
+    ...(tailDirection === 'down' ? { marginBottom: 8 } : { marginTop: 8 }),
     ...currentMoodStyle,
   };
 
-  // Triangle tail pointing down toward the character
-  const tailStyle: CSSProperties = {
+  // Triangle tail pointing toward the character
+  const tailStyle: CSSProperties = tailDirection === 'down' ? {
     position: 'absolute',
     bottom: -10,
     left: '50%',
@@ -148,6 +148,17 @@ export function SpeechBubble({ message, mood }: SpeechBubbleProps) {
     borderRight: '8px solid transparent',
     borderTop: `10px solid ${tailColor}`,
     filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.1))',
+  } : {
+    position: 'absolute',
+    top: -10,
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: 0,
+    height: 0,
+    borderLeft: '8px solid transparent',
+    borderRight: '8px solid transparent',
+    borderBottom: `10px solid ${tailColor}`,
+    filter: 'drop-shadow(0 -2px 2px rgba(0,0,0,0.1))',
   };
 
   return (

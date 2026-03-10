@@ -16,6 +16,10 @@ declare global {
       getCollection(): Promise<unknown>;
       onCollectionUpdated(callback: (state: unknown) => void): () => void;
       shareCard(quoteId?: string): Promise<unknown>;
+      setIgnoreMouse(ignore: boolean): void;
+      savePosition(x: number, y: number): void;
+      moveWindow(x: number, y: number): void;
+      showContextMenu(): void;
     };
   }
 }

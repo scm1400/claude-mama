@@ -11,6 +11,10 @@ const CHANNELS = {
   COLLECTION_GET: 'mama:collection-get',
   COLLECTION_UPDATED: 'mama:collection-updated',
   SHARE_CARD: 'mama:share-card',
+  SET_IGNORE_MOUSE: 'mama:set-ignore-mouse',
+  SAVE_POSITION: 'mama:save-position',
+  MOVE_WINDOW: 'mama:move-window',
+  SHOW_CONTEXT_MENU: 'mama:show-context-menu',
 } as const;
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -48,5 +52,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   shareCard: (quoteId?: string): Promise<unknown> => {
     return ipcRenderer.invoke(CHANNELS.SHARE_CARD, quoteId);
+  },
+
+  setIgnoreMouse: (ignore: boolean): void => {
+    ipcRenderer.send(CHANNELS.SET_IGNORE_MOUSE, ignore);
+  },
+
+  savePosition: (x: number, y: number): void => {
+    ipcRenderer.send(CHANNELS.SAVE_POSITION, x, y);
+  },
+
+  moveWindow: (x: number, y: number): void => {
+    ipcRenderer.send(CHANNELS.MOVE_WINDOW, x, y);
+  },
+
+  showContextMenu: (): void => {
+    ipcRenderer.send(CHANNELS.SHOW_CONTEXT_MENU);
   },
 });

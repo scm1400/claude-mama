@@ -28,6 +28,7 @@ In `src/shared/types.ts`, add to the `IPC_CHANNELS` const:
 ```typescript
 SET_IGNORE_MOUSE: 'mama:set-ignore-mouse',
 SAVE_POSITION: 'mama:save-position',
+SHOW_CONTEXT_MENU: 'mama:show-context-menu',
 ```
 
 In the `MamaSettings` interface, make `position` optional to allow gradual migration:
@@ -43,6 +44,7 @@ In `src/main/preload.ts`, add to the `CHANNELS` const:
 ```typescript
 SET_IGNORE_MOUSE: 'mama:set-ignore-mouse',
 SAVE_POSITION: 'mama:save-position',
+SHOW_CONTEXT_MENU: 'mama:show-context-menu',
 ```
 
 Add to the `contextBridge.exposeInMainWorld` object:
@@ -55,6 +57,10 @@ setIgnoreMouse: (ignore: boolean): void => {
 savePosition: (x: number, y: number): void => {
   ipcRenderer.send(CHANNELS.SAVE_POSITION, x, y);
 },
+
+showContextMenu: (): void => {
+  ipcRenderer.send(CHANNELS.SHOW_CONTEXT_MENU);
+},
 ```
 
 - [ ] **Step 3: Add TypeScript declarations**
@@ -64,6 +70,7 @@ In `src/renderer/electron.d.ts`, add to the `ElectronAPI` interface:
 ```typescript
 setIgnoreMouse(ignore: boolean): void;
 savePosition(x: number, y: number): void;
+showContextMenu(): void;
 ```
 
 - [ ] **Step 4: Verify TypeScript compiles**
@@ -130,11 +137,12 @@ ipcMain.on(IPC_CHANNELS.SET_IGNORE_MOUSE, (_event, ignore: boolean) => {
 });
 
 ipcMain.on(IPC_CHANNELS.SAVE_POSITION, (_event, rawX: number, rawY: number) => {
-  // Clamp position to screen work area
-  const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
+  // Use nearest display for multi-monitor support
+  const display = screen.getDisplayNearestPoint({ x: rawX, y: rawY });
+  const { x: areaX, y: areaY, width: areaW, height: areaH } = display.workArea;
   const [winW, winH] = [200, 250];
-  const x = Math.max(0, Math.min(rawX, screenW - winW));
-  const y = Math.max(0, Math.min(rawY, screenH - winH));
+  const x = Math.max(areaX, Math.min(rawX, areaX + areaW - winW));
+  const y = Math.max(areaY, Math.min(rawY, areaY + areaH - winH));
 
   const store = getStore();
   (store as any).set('windowPosition', { x, y });
@@ -143,6 +151,19 @@ ipcMain.on(IPC_CHANNELS.SAVE_POSITION, (_event, rawX: number, rawY: number) => {
   if (win && !win.isDestroyed() && (x !== rawX || y !== rawY)) {
     win.setPosition(x, y);
   }
+});
+
+ipcMain.on(IPC_CHANNELS.SHOW_CONTEXT_MENU, () => {
+  const locale = getStore().get('locale', 'ko') as Locale;
+  const menu = Menu.buildFromTemplate([
+    { label: 'Settings...', click: () => showSettingsWindow() },
+    { type: 'separator' },
+    { label: isVisible ? 'Hide Mama' : 'Show Mama', click: () => {
+      if (win.isVisible()) win.hide(); else win.show();
+    }},
+    { label: 'Quit', click: () => app.quit() },
+  ]);
+  menu.popup({ window: win });
 });
 ```
 
@@ -185,15 +206,19 @@ export type ExpandDirection = 'up' | 'down';
 interface UseWidgetModeReturn {
   mode: WidgetMode;
   direction: ExpandDirection;
+  hasNewMessage: boolean;
   onCharacterEnter: () => void;
   onCharacterLeave: () => void;
-  triggerAutoExpand: () => void;
+  onCharacterClick: () => void;
+  notifyNewMessage: () => void;
+  clearNewMessage: () => void;
   scheduleCollapse: (delay: number) => void;
 }
 
 export function useWidgetMode(): UseWidgetModeReturn {
   const [mode, setMode] = useState<WidgetMode>('mini');
   const [direction, setDirection] = useState<ExpandDirection>('up');
+  const [hasNewMessage, setHasNewMessage] = useState(false);
   const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHovering = useRef(false);
 
@@ -226,6 +251,7 @@ export function useWidgetMode(): UseWidgetModeReturn {
     cancelCollapse();
     setDirection(computeDirection());
     setMode('expanded');
+    setHasNewMessage(false);
   }, [computeDirection]);
 
   const onCharacterLeave = useCallback(() => {
@@ -233,17 +259,32 @@ export function useWidgetMode(): UseWidgetModeReturn {
     scheduleCollapse(1000);
   }, [scheduleCollapse]);
 
-  const triggerAutoExpand = useCallback(() => {
+  const onCharacterClick = useCallback(() => {
     setDirection(computeDirection());
-    setMode('expanded');
-    // Auto-collapse is handled by SpeechBubble's onComplete → scheduleCollapse
-  }, [computeDirection]);
+    if (mode === 'mini') {
+      setMode('expanded');
+      setHasNewMessage(false);
+    } else {
+      setMode('mini');
+    }
+  }, [mode, computeDirection]);
+
+  // Called on message rotation — shows pulsing dot instead of auto-expanding
+  const notifyNewMessage = useCallback(() => {
+    if (mode === 'mini') {
+      setHasNewMessage(true);
+    }
+  }, [mode]);
+
+  const clearNewMessage = useCallback(() => {
+    setHasNewMessage(false);
+  }, []);
 
   useEffect(() => {
     return () => { cancelCollapse(); };
   }, []);
 
-  return { mode, direction, onCharacterEnter, onCharacterLeave, triggerAutoExpand, scheduleCollapse };
+  return { mode, direction, hasNewMessage, onCharacterEnter, onCharacterLeave, onCharacterClick, notifyNewMessage, clearNewMessage, scheduleCollapse };
 }
 ```
 
@@ -366,7 +407,7 @@ export function MiniBar({ utilizationPercent, mood }: {
 }
 ```
 
-- [ ] **Step 2: Update Character.tsx with forwardRef, reduced size, and mouse events**
+- [ ] **Step 2: Update Character.tsx with forwardRef, reduced size, 80x80 hit area, and cursor**
 
 ```typescript
 import React, { CSSProperties, forwardRef } from 'react';
@@ -377,12 +418,14 @@ type Expression = MamaMood | MamaErrorExpression;
 
 interface CharacterProps {
   expression: Expression;
+  hasNewMessage?: boolean;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }
 
 const IMG_W = 60;
 const IMG_H = 60;
+const HIT_AREA = 80; // 10px invisible padding for Fitts's law
 ```
 
 Change `MoodOverlay` pixel scale: `const px = 2.5;`
@@ -391,13 +434,23 @@ Convert export to forwardRef:
 
 ```typescript
 export const Character = forwardRef<HTMLDivElement, CharacterProps>(
-  function Character({ expression, onMouseEnter, onMouseLeave }, ref) {
+  function Character({ expression, hasNewMessage, onMouseEnter, onMouseLeave }, ref) {
+    // Outer hit area (80x80, invisible padding)
+    const hitAreaStyle: CSSProperties = {
+      position: 'relative',
+      width: HIT_AREA,
+      height: HIT_AREA,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      cursor: 'grab',
+    };
+
     const containerStyle: CSSProperties = {
       position: 'relative',
       width: IMG_W,
       height: IMG_H,
       animation: MOOD_ANIMATIONS[expression],
-      cursor: 'grab',
       WebkitAppRegion: 'drag' as any,
     };
 
@@ -406,13 +459,28 @@ export const Character = forwardRef<HTMLDivElement, CharacterProps>(
     return (
       <div
         ref={ref}
-        style={containerStyle}
+        style={hitAreaStyle}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
       >
-        {auraStyle && <div style={auraStyle as CSSProperties} />}
-        <img src={mamaPng} alt="Claude Mama" style={imgStyle} draggable={false} />
-        <MoodOverlay expression={expression} />
+        <div style={containerStyle}>
+          {auraStyle && <div style={auraStyle as CSSProperties} />}
+          <img src={mamaPng} alt="Claude Mama" style={imgStyle} draggable={false} />
+          <MoodOverlay expression={expression} />
+        </div>
+        {hasNewMessage && (
+          <div style={{
+            position: 'absolute',
+            top: 4,
+            right: 4,
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            background: '#ef4444',
+            animation: 'pulse-dot 1.5s ease-in-out infinite',
+            boxShadow: '0 0 6px rgba(239, 68, 68, 0.6)',
+          }} />
+        )}
       </div>
     );
   }
@@ -441,7 +509,7 @@ Dependencies: Tasks 3-5 must be complete (useWidgetMode, SpeechBubble onComplete
 - [ ] **Step 1: Integrate useWidgetMode and restructure MainView**
 
 ```typescript
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useMamaState } from './hooks/useMamaState';
 import { useWidgetMode } from './hooks/useWidgetMode';
 import { Character } from './components/Character';
@@ -453,9 +521,11 @@ import { t } from '../shared/i18n';
 
 function MainView() {
   const mamaState = useMamaState();
-  const { mode, direction, onCharacterEnter, onCharacterLeave, triggerAutoExpand, scheduleCollapse } = useWidgetMode();
+  const { mode, direction, hasNewMessage, onCharacterEnter, onCharacterLeave, onCharacterClick, notifyNewMessage, clearNewMessage, scheduleCollapse } = useWidgetMode();
   const [locale, setLocale] = useState<Locale>('ko');
+  const [showDragHint, setShowDragHint] = useState(false);
   const prevMessageRef = useRef<string>('');
+  const mouseDownPos = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     window.electronAPI.getSettings().then((s) => {
@@ -465,6 +535,16 @@ function MainView() {
     });
   }, []);
 
+  // First-run drag hint
+  useEffect(() => {
+    const hintShown = localStorage.getItem('firstRunHintShown');
+    if (!hintShown) {
+      setShowDragHint(true);
+      localStorage.setItem('firstRunHintShown', 'true');
+      setTimeout(() => setShowDragHint(false), 3000);
+    }
+  }, []);
+
   const mood = mamaState?.mood ?? 'sleeping';
   const message = mamaState?.message ?? t(locale, 'loading_message');
   const utilizationPercent = mamaState?.utilizationPercent ?? 0;
@@ -472,20 +552,41 @@ function MainView() {
   const fiveHourResetsAt = mamaState?.fiveHourResetsAt ?? null;
   const dataSource = mamaState?.dataSource ?? 'none';
 
-  // Auto-expand on message rotation
+  // Notify new message (pulsing dot) instead of auto-expanding
   useEffect(() => {
     if (message !== prevMessageRef.current) {
       prevMessageRef.current = message;
       if (mamaState) {
-        triggerAutoExpand();
+        notifyNewMessage();
       }
     }
-  }, [message, mamaState, triggerAutoExpand]);
+  }, [message, mamaState, notifyNewMessage]);
 
   const isExpanded = mode === 'expanded';
 
+  // Click vs drag detection (5px threshold)
+  const handleCharacterMouseDown = useCallback((e: React.MouseEvent) => {
+    mouseDownPos.current = { x: e.screenX, y: e.screenY };
+  }, []);
+
+  const handleCharacterMouseUp = useCallback((e: React.MouseEvent) => {
+    if (mouseDownPos.current) {
+      const dx = Math.abs(e.screenX - mouseDownPos.current.x);
+      const dy = Math.abs(e.screenY - mouseDownPos.current.y);
+      if (dx < 5 && dy < 5) {
+        onCharacterClick();
+      }
+      mouseDownPos.current = null;
+    }
+  }, [onCharacterClick]);
+
+  // Right-click context menu
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    window.electronAPI.showContextMenu();
+  }, []);
+
   const handleBubbleComplete = () => {
-    // Schedule collapse without corrupting isHovering state
     scheduleCollapse(1000);
   };
 
@@ -494,11 +595,36 @@ function MainView() {
   ) : null;
 
   const character = (
-    <Character
-      expression={mood}
-      onMouseEnter={onCharacterEnter}
-      onMouseLeave={onCharacterLeave}
-    />
+    <div
+      onMouseDown={handleCharacterMouseDown}
+      onMouseUp={handleCharacterMouseUp}
+      onContextMenu={handleContextMenu}
+      style={{ position: 'relative' }}
+    >
+      <Character
+        expression={mood}
+        hasNewMessage={hasNewMessage}
+        onMouseEnter={onCharacterEnter}
+        onMouseLeave={onCharacterLeave}
+      />
+      {showDragHint && (
+        <div style={{
+          position: 'absolute',
+          bottom: -20,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(0,0,0,0.8)',
+          color: '#fff',
+          fontSize: 10,
+          padding: '2px 8px',
+          borderRadius: 4,
+          whiteSpace: 'nowrap',
+          animation: 'fade-out 3s ease forwards',
+        }}>
+          Drag me to move!
+        </div>
+      )}
+    </div>
   );
 
   const usageBars = dataSource === 'none' ? (
@@ -562,11 +688,12 @@ git commit -m "feat(ui): integrate mini/expand modes with direction-aware layout
 
 ## Chunk 3: Hit-Test Mouse Events & Drag Position
 
-### Task 7: Implement hit-test pointer event switching with IPC deduplication
+### Task 7: Implement hit-test pointer event switching with IPC deduplication and CSS animations
 
 **Files:**
 - Modify: `src/renderer/App.tsx` — add mousemove listener for hit-test
 - Modify: `src/renderer/components/Character.tsx` — already has forwardRef from Task 5
+- Modify: `src/renderer/styles/styles.css` — add pulse-dot and fade-out animations
 
 - [ ] **Step 1: Add hit-test logic to MainView**
 
@@ -606,9 +733,26 @@ Pass `characterRef` to the Character component:
 <Character
   ref={characterRef}
   expression={mood}
+  hasNewMessage={hasNewMessage}
   onMouseEnter={onCharacterEnter}
   onMouseLeave={onCharacterLeave}
 />
+```
+
+- [ ] **Step 1.5: Add CSS animations for pulsing dot and drag hint**
+
+In `src/renderer/styles/styles.css`, add:
+
+```css
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+}
+
+@keyframes fade-out {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
+}
 ```
 
 - [ ] **Step 2: Verify TypeScript compiles and build**
@@ -727,13 +871,18 @@ Run: `npm run dev`
 
 Verify:
 1. Widget starts in mini mode (small character + single bar)
-2. Hover over character → expands with full bars
+2. Hover over character → expands with full bars, cursor shows `grab`
 3. Move mouse away → collapses after ~1 second
-4. Message rotation → auto-expands with speech bubble, then collapses
-5. Drag character → window moves, position saved
-6. Restart app → window appears at saved position
-7. Widget at bottom of screen → bubble expands upward
-8. Widget at top of screen → bubble expands downward
-9. Drag to screen edge → position clamped to visible area
+4. Message rotation → pulsing red dot appears on character (no auto-expand)
+5. Hover/click after dot appears → expands, dot disappears, speech bubble shows
+6. Click character (non-drag) → toggles expand/collapse
+7. Right-click character → context menu with Settings, Hide, Quit
+8. Drag character → window moves, cursor shows `grabbing`, position saved
+9. Restart app → window appears at saved position
+10. Widget at bottom of screen → bubble expands upward
+11. Widget at top of screen → bubble expands downward
+12. Drag to screen edge → position clamped to visible area (multi-monitor aware)
+13. First launch → "Drag me to move!" hint fades after 3s
+14. Hit area feels comfortable (80x80, larger than visible 60x60 character)
 
 - [ ] **Step 4: Commit any fixes**

@@ -1,4 +1,4 @@
-import React, { CSSProperties } from 'react';
+import React, { CSSProperties, forwardRef } from 'react';
 import { MamaMood, MamaErrorExpression } from '../../shared/types';
 import mamaPng from '../assets/claude-mama.png';
 
@@ -6,10 +6,15 @@ type Expression = MamaMood | MamaErrorExpression;
 
 interface CharacterProps {
   expression: Expression;
+  hasNewMessage?: boolean;
+  isDragging?: boolean;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
-const IMG_W = 100;
-const IMG_H = 100;
+const IMG_W = 60;
+const IMG_H = 60;
+const HIT_AREA = 80;
 
 const MOOD_ANIMATIONS: Record<Expression, string> = {
   angry: 'angryShake 0.5s ease-in-out infinite',
@@ -39,7 +44,7 @@ const MOOD_AURA: Partial<Record<Expression, CSSProperties>> = {
 };
 
 function MoodOverlay({ expression }: { expression: Expression }) {
-  const px = 4;
+  const px = 2.5;
 
   switch (expression) {
     case 'angry':
@@ -189,31 +194,63 @@ function MoodOverlay({ expression }: { expression: Expression }) {
   }
 }
 
-export function Character({ expression }: CharacterProps) {
-  const containerStyle: CSSProperties = {
-    position: 'relative',
-    width: IMG_W,
-    height: IMG_H,
-    animation: MOOD_ANIMATIONS[expression],
-  };
+export const Character = forwardRef<HTMLDivElement, CharacterProps>(
+  function Character({ expression, hasNewMessage, isDragging, onMouseEnter, onMouseLeave }, ref) {
+    const hitAreaStyle: CSSProperties = {
+      position: 'relative',
+      width: HIT_AREA,
+      height: HIT_AREA,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      cursor: isDragging ? 'grabbing' : 'grab',
+    };
 
-  const imgStyle: CSSProperties = {
-    width: '100%',
-    height: '100%',
-    objectFit: 'contain',
-    imageRendering: 'pixelated',
-    ...(expression === 'sleeping' ? { filter: 'brightness(0.85) saturate(0.7)', opacity: 0.8 } : {}),
-    ...(expression === 'angry' ? { filter: 'saturate(1.2) brightness(1.05)' } : {}),
-    ...(expression === 'proud' ? { filter: 'brightness(1.1) saturate(1.1)' } : {}),
-  };
+    const containerStyle: CSSProperties = {
+      position: 'relative',
+      width: IMG_W,
+      height: IMG_H,
+      animation: MOOD_ANIMATIONS[expression],
+    };
 
-  const auraStyle = MOOD_AURA[expression];
+    const imgStyle: CSSProperties = {
+      width: '100%',
+      height: '100%',
+      objectFit: 'contain',
+      imageRendering: 'pixelated',
+      ...(expression === 'sleeping' ? { filter: 'brightness(0.85) saturate(0.7)', opacity: 0.8 } : {}),
+      ...(expression === 'angry' ? { filter: 'saturate(1.2) brightness(1.05)' } : {}),
+      ...(expression === 'proud' ? { filter: 'brightness(1.1) saturate(1.1)' } : {}),
+    };
 
-  return (
-    <div style={containerStyle}>
-      {auraStyle && <div style={auraStyle as CSSProperties} />}
-      <img src={mamaPng} alt="Claude Mama" style={imgStyle} draggable={false} />
-      <MoodOverlay expression={expression} />
-    </div>
-  );
-}
+    const auraStyle = MOOD_AURA[expression];
+
+    return (
+      <div
+        ref={ref}
+        style={hitAreaStyle}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+      >
+        <div style={containerStyle}>
+          {auraStyle && <div style={auraStyle as CSSProperties} />}
+          <img src={mamaPng} alt="Claude Mama" style={imgStyle} draggable={false} />
+          <MoodOverlay expression={expression} />
+        </div>
+        {hasNewMessage && (
+          <div style={{
+            position: 'absolute',
+            top: 4,
+            right: 4,
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            background: '#ef4444',
+            animation: 'pulse-dot 1.5s ease-in-out infinite',
+            boxShadow: '0 0 6px rgba(239, 68, 68, 0.6)',
+          }} />
+        )}
+      </div>
+    );
+  }
+);
