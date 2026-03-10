@@ -1,5 +1,6 @@
 import path from 'path';
 import { Tray, Menu, nativeImage, BrowserWindow, app } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import { showSettingsWindow } from './settings-window';
 import { generateShareCard } from './share-card';
 import { getStore } from './ipc-handlers';
@@ -63,6 +64,20 @@ function updateContextMenu(mainWindow: BrowserWindow): void {
     {
       label: 'Settings...',
       click: () => showSettingsWindow(),
+    },
+    { type: 'separator' },
+    {
+      label: `v${app.getVersion()}`,
+      enabled: false,
+    },
+    {
+      label: t(locale, 'tray_check_update'),
+      click: () => {
+        if (!app.isPackaged) return;
+        autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+          console.log(`[auto-updater] Check failed: ${err.message}`);
+        });
+      },
     },
     { type: 'separator' },
     {

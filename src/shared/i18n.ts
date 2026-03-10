@@ -48,6 +48,7 @@ const UI_STRINGS = {
     tray_share: '성적표 공유',
     share_success: '클립보드에 복사됨!',
     share_no_data: '아직 데이터 수집 중...',
+    tray_check_update: '업데이트 확인',
   },
   en: {
     settings_title: 'Claude Mama Settings',
@@ -95,6 +96,7 @@ const UI_STRINGS = {
     tray_share: 'Share Report Card',
     share_success: 'Copied to clipboard!',
     share_no_data: 'Still collecting data...',
+    tray_check_update: 'Check for Updates',
   },
   ja: {
     settings_title: 'Claude Mama 設定',
@@ -142,6 +144,7 @@ const UI_STRINGS = {
     tray_share: '成績表を共有',
     share_success: 'クリップボードにコピー！',
     share_no_data: 'まだデータ収集中...',
+    tray_check_update: 'アップデートを確認',
   },
   zh: {
     settings_title: 'Claude Mama 设置',
@@ -189,6 +192,7 @@ const UI_STRINGS = {
     tray_share: '分享成绩单',
     share_success: '已复制到剪贴板！',
     share_no_data: '还在收集数据...',
+    tray_check_update: '检查更新',
   },
 } as const;
 
