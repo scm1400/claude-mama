@@ -67,7 +67,7 @@ function updateContextMenu(mainWindow: BrowserWindow): void {
     },
     { type: 'separator' },
     {
-      label: `v${require('../../package.json').version}`,
+      label: `v${app.isPackaged ? app.getVersion() : require(path.join(process.cwd(), 'package.json')).version}`,
       enabled: false,
     },
     {
