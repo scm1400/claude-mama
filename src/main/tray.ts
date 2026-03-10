@@ -1,5 +1,5 @@
 import path from 'path';
-import { Tray, Menu, nativeImage, BrowserWindow, app } from 'electron';
+import { Tray, Menu, nativeImage, BrowserWindow, app, dialog } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import { showSettingsWindow } from './settings-window';
 import { generateShareCard } from './share-card';
@@ -72,11 +72,19 @@ function updateContextMenu(mainWindow: BrowserWindow): void {
     },
     {
       label: t(locale, 'tray_check_update'),
-      click: () => {
-        if (!app.isPackaged) return;
-        autoUpdater.checkForUpdatesAndNotify().catch((err) => {
-          console.log(`[auto-updater] Check failed: ${err.message}`);
-        });
+      click: async () => {
+        if (!app.isPackaged) {
+          dialog.showMessageBox({ type: 'info', title: 'Claude Mama', message: 'Auto-update is not available in dev mode.' });
+          return;
+        }
+        try {
+          const result = await autoUpdater.checkForUpdates();
+          if (!result || !result.updateInfo || result.updateInfo.version === app.getVersion()) {
+            dialog.showMessageBox({ type: 'info', title: 'Claude Mama', message: t(locale, 'update_up_to_date') });
+          }
+        } catch (err: any) {
+          dialog.showMessageBox({ type: 'error', title: 'Claude Mama', message: `Update check failed: ${err.message}` });
+        }
       },
     },
     { type: 'separator' },

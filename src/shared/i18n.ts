@@ -49,6 +49,7 @@ const UI_STRINGS = {
     share_success: '클립보드에 복사됨!',
     share_no_data: '아직 데이터 수집 중...',
     tray_check_update: '업데이트 확인',
+    update_up_to_date: '최신 버전입니다!',
   },
   en: {
     settings_title: 'Claude Mama Settings',
@@ -97,6 +98,7 @@ const UI_STRINGS = {
     share_success: 'Copied to clipboard!',
     share_no_data: 'Still collecting data...',
     tray_check_update: 'Check for Updates',
+    update_up_to_date: 'You are up to date!',
   },
   ja: {
     settings_title: 'Claude Mama 設定',
@@ -145,6 +147,7 @@ const UI_STRINGS = {
     share_success: 'クリップボードにコピー！',
     share_no_data: 'まだデータ収集中...',
     tray_check_update: 'アップデートを確認',
+    update_up_to_date: '最新バージョンです！',
   },
   zh: {
     settings_title: 'Claude Mama 设置',
@@ -193,6 +196,7 @@ const UI_STRINGS = {
     share_success: '已复制到剪贴板！',
     share_no_data: '还在收集数据...',
     tray_check_update: '检查更新',
+    update_up_to_date: '已是最新版本！',
   },
 } as const;
 
