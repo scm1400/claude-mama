@@ -549,9 +549,9 @@ export class UsageTracker {
   private scheduleNext(rateLimited: boolean, hasError: boolean): void {
     let interval: number;
     if (rateLimited) {
-      // Retry quickly (10s) to get a successful API response for calibration
-      interval = 10_000;
-      console.log(`[usage-tracker] Rate limited. Retrying in 10s`);
+      // Retry every 2 min to avoid hammering the rate-limited endpoint
+      interval = 2 * 60 * 1000;
+      console.log(`[usage-tracker] Rate limited. Retrying in 2m`);
     } else if (hasError) {
       this.backoffLevel = Math.min(this.backoffLevel + 1, 2);
       const cap = MAX_BACKOFF_ERR_MS;
