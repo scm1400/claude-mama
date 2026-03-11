@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, screen, Menu, dialog } from 'electron';
 import path from 'path';
 import { registerIpcHandlers, getStore } from './ipc-handlers';
 import { showSettingsWindow } from './settings-window';
@@ -11,7 +11,9 @@ import { syncAutoLaunch } from './auto-launch';
 import { initAutoUpdater } from './auto-updater';
 import { evaluateQuoteTriggers } from '../core/quote-triggers';
 import { QuoteCollectionManager } from '../core/quote-collection';
-import { setShareCardState } from './share-card';
+import { setShareCardState, generateShareCard } from './share-card';
+import { autoUpdater } from 'electron-updater';
+import { t } from '../shared/i18n';
 
 const isDev = !app.isPackaged;
 
@@ -212,16 +214,50 @@ app.whenReady().then(async () => {
     (getStore() as any).set('windowPosition', { x, y });
   });
 
-  // Right-click context menu on character
+  // Right-click context menu on character (mirrors tray menu)
   ipcMain.on(IPC_CHANNELS.SHOW_CONTEXT_MENU, () => {
     const locale = (getStore() as any).get('locale', 'ko') as Locale;
     const menu = Menu.buildFromTemplate([
-      { label: 'Settings...', click: () => showSettingsWindow() },
+      {
+        label: win.isVisible() ? 'Hide Mama' : 'Show Mama',
+        click: () => { if (win.isVisible()) win.hide(); else { win.show(); win.focus(); } },
+      },
       { type: 'separator' },
-      { label: win.isVisible() ? 'Hide Mama' : 'Show Mama', click: () => {
-        if (win.isVisible()) win.hide(); else win.show();
-      }},
-      { label: 'Quit', click: () => app.quit() },
+      {
+        label: t(locale, 'tray_share'),
+        click: () => { void generateShareCard(); },
+      },
+      {
+        label: 'Settings...',
+        click: () => showSettingsWindow(),
+      },
+      { type: 'separator' },
+      {
+        label: `v${app.isPackaged ? app.getVersion() : require(path.join(process.cwd(), 'package.json')).version}`,
+        enabled: false,
+      },
+      {
+        label: t(locale, 'tray_check_update'),
+        click: async () => {
+          if (!app.isPackaged) {
+            dialog.showMessageBox({ type: 'info', title: 'Claude Mama', message: 'Auto-update is not available in dev mode.' });
+            return;
+          }
+          try {
+            const result = await autoUpdater.checkForUpdates();
+            if (!result || !result.updateInfo || result.updateInfo.version === app.getVersion()) {
+              dialog.showMessageBox({ type: 'info', title: 'Claude Mama', message: t(locale, 'update_up_to_date') });
+            }
+          } catch (err: any) {
+            dialog.showMessageBox({ type: 'error', title: 'Claude Mama', message: `Update check failed: ${err.message}` });
+          }
+        },
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit',
+        click: () => app.quit(),
+      },
     ]);
     menu.popup({ window: win });
   });

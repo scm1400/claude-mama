@@ -1,6 +1,6 @@
 import { MamaMood, MamaErrorExpression, Locale } from '../shared/types';
 
-type MoodKey = MamaMood | MamaErrorExpression | 'fiveHourWarning';
+type MoodKey = MamaMood | MamaErrorExpression | 'fiveHourWarning' | 'rateLimited';
 
 const MESSAGE_POOLS: Record<Locale, Record<MoodKey, string[]>> = {
   ko: {
@@ -91,6 +91,13 @@ const MESSAGE_POOLS: Record<Locale, Record<MoodKey, string[]>> = {
       '잠깐 눈 좀 쉬어~ 한도도 거의 찬다!',
       '물 한 잔 마시고 와~ 5시간 리밋 다 됐어!',
     ],
+    rateLimited: [
+      '엄마가 지금 좀 확인이 안 돼~ 조금만 기다려~',
+      '서버가 바빠서 엄마가 못 들어가~ 이따 다시 볼게~',
+      '아이고 접속이 안 되네~ 좀 이따 다시 확인할게~',
+      '엄마가 알아보려는데 자꾸 막혀~ 곧 될 거야~',
+      '지금 줄이 길어서 못 본다~ 조금만 참아~',
+    ],
   },
   en: {
     angry: [
@@ -179,6 +186,13 @@ const MESSAGE_POOLS: Record<Locale, Record<MoodKey, string[]>> = {
       "Eat first~ You're almost at the limit!",
       "Rest your eyes~ Almost at the 5h cap!",
       "Drink some water~ 5-hour limit's almost up!",
+    ],
+    rateLimited: [
+      "Mom can't get through right now~ Just wait a sec~",
+      "The server's all busy~ I'll check again later~",
+      "Ugh, it won't let me in~ I'll try again soon~",
+      "Mom's trying to check but it keeps blocking me~ It'll work soon~",
+      "There's a line right now~ Just be patient~",
     ],
   },
   ja: {
@@ -269,6 +283,13 @@ const MESSAGE_POOLS: Record<Locale, Record<MoodKey, string[]>> = {
       '目を休めて〜5時間の上限近いわよ！',
       'お水飲んできて〜5時間リミットもうすぐよ！',
     ],
+    rateLimited: [
+      'ママ今ちょっと確認できないの〜少し待ってね〜',
+      'サーバーが混んでて入れないわ〜後でまた見るわね〜',
+      'あらら繋がらないわ〜もうちょっとしたら確認するわ〜',
+      'ママ調べようとしてるのにブロックされるの〜すぐ直るわ〜',
+      '今行列ができてるみたい〜ちょっと我慢してね〜',
+    ],
   },
   zh: {
     angry: [
@@ -357,6 +378,13 @@ const MESSAGE_POOLS: Record<Locale, Record<MoodKey, string[]>> = {
       '先吃饭吧~快到限额了！',
       '让眼睛休息一下~5小时快到了！',
       '喝杯水再来~5小时额度快满了！',
+    ],
+    rateLimited: [
+      '妈妈现在查不了~你等一会儿~',
+      '服务器太忙了进不去~一会儿再看~',
+      '哎呀连不上了~过一会儿再试试~',
+      '妈妈想查但是一直进不去~马上就好~',
+      '现在排队呢~你忍一忍~',
     ],
   },
 };

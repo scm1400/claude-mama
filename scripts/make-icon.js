@@ -3,7 +3,7 @@ const { default: pngToIco } = require('png-to-ico');
 const fs = require('fs');
 const path = require('path');
 
-const src = path.join(__dirname, '..', 'docs', 'images', 'character.png');
+const src = path.join(__dirname, '..', 'docs', 'images', 'character.webp');
 const outDir = path.join(__dirname, '..', 'build');
 fs.mkdirSync(outDir, { recursive: true });
 
