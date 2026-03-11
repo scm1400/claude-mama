@@ -196,6 +196,22 @@ PRs welcome! Whether it's new languages, more guilt-inducing messages, or pixel 
 4. Push to the branch
 5. Open a Pull Request
 
+## Privacy Policy
+
+This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
+
+- **Anthropic API**: The app calls the Anthropic OAuth Usage API to retrieve your token usage statistics. This is initiated by you when you log in with your Claude Code credentials.
+- **GitHub (Auto-Update)**: The app checks GitHub Releases for new versions. No personal data is transmitted.
+- **Local Storage**: Your API credentials and settings are stored locally on your machine using `electron-store`. They are never sent to any third-party server.
+
+## Code Signing Policy
+
+Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+
+**Team roles:**
+- Committers and reviewers: [Members](https://github.com/orgs/scm1400/people)
+- Approvers: [Owners](https://github.com/orgs/scm1400/people?query=role%3Aowner)
+
 ## License
 
 [ISC](LICENSE) — Free as in "mom's love" (unconditional, but with expectations).

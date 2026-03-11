@@ -1,6 +1,6 @@
 {
   "name": "claude-mama",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "Claude API usage monitor desktop widget",
   "main": "dist/main/main/main.js",
   "scripts": {
@@ -16,7 +16,7 @@
     "build:all": "electron-builder --win --mac"
   },
   "keywords": [],
-  "author": "",
+  "author": "scm1400",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
