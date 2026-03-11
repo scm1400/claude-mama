@@ -38,6 +38,7 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, 'dist/renderer'),
     emptyOutDir: true,
+    assetsInlineLimit: 10240, // Inline small assets as base64 (fixes Electron ASAR + new URL() issue)
   },
   server: {
     port: 5173,

@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, screen, Menu, dialog } from 'electron';
 import path from 'path';
-import { registerIpcHandlers, getStore } from './ipc-handlers';
+import { registerIpcHandlers, getStore, setOnSettingsChanged } from './ipc-handlers';
 import { showSettingsWindow } from './settings-window';
 import { UsageTracker } from '../core/usage-tracker';
 import { computeMood } from '../core/mood-engine';
@@ -30,6 +30,9 @@ let firstApiCallSeen: boolean;
 
 function broadcastState(): void {
   if (!lastUsageInput) return;
+  // Always read latest locale from store
+  const locale = getStore().get('locale', DEFAULT_LOCALE) as import('../shared/types').Locale;
+  lastUsageInput = { ...lastUsageInput, locale };
   const state = computeMood(lastUsageInput);
   lastMamaState = state;
   setShareCardState(state);
@@ -163,6 +166,7 @@ app.whenReady().then(async () => {
 
   // Register IPC handlers with main window so position changes can be applied
   registerIpcHandlers(win, collectionManager);
+  setOnSettingsChanged(() => broadcastState());
 
   // Dynamic mouse event switching (hit-test pattern)
   ipcMain.on(IPC_CHANNELS.SET_IGNORE_MOUSE, (_event, ignore: boolean) => {

@@ -30,10 +30,11 @@ mac:
   icon: build/icon.png
   category: public.app-category.utilities
   hardenedRuntime: true
-  gatekeeperAssess: false
+  gatekeeperAssess: true
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
   notarize: false
+#afterSign: scripts/notarize.js
 nsis:
   oneClick: true
   allowToChangeInstallationDirectory: false

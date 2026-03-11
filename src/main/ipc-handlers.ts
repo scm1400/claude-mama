@@ -19,6 +19,12 @@ export function getStore(): Store<MamaSettings> {
   return store;
 }
 
+let onSettingsChanged: (() => void) | null = null;
+
+export function setOnSettingsChanged(callback: () => void): void {
+  onSettingsChanged = callback;
+}
+
 export function registerIpcHandlers(
   mainWindow?: BrowserWindow,
   collectionManager?: QuoteCollectionManager,
@@ -36,6 +42,9 @@ export function registerIpcHandlers(
     if (typeof settings.autoStart === 'boolean') {
       await updateAutoLaunch(settings.autoStart);
     }
+
+    // Re-broadcast state with updated settings (e.g. locale change)
+    onSettingsChanged?.();
 
     return store.store;
   });
