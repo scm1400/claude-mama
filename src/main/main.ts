@@ -13,7 +13,7 @@ import { evaluateQuoteTriggers } from '../core/quote-triggers';
 import { QuoteCollectionManager } from '../core/quote-collection';
 import { setShareCardState, generateShareCard } from './share-card';
 import { autoUpdater } from 'electron-updater';
-import { t } from '../shared/i18n';
+import { t, DEFAULT_LOCALE } from '../shared/i18n';
 
 const isDev = !app.isPackaged;
 
@@ -132,7 +132,7 @@ function createWindow(): BrowserWindow {
 
   // Send state updates to ALL windows on each poll result
   usageTracker.onUpdate((data) => {
-    const locale = getStore().get('locale', 'ko') as import('../shared/types').Locale;
+    const locale = getStore().get('locale', DEFAULT_LOCALE) as import('../shared/types').Locale;
     lastUsageInput = { ...data, locale };
     broadcastState();
   });
@@ -216,7 +216,7 @@ app.whenReady().then(async () => {
 
   // Right-click context menu on character (mirrors tray menu)
   ipcMain.on(IPC_CHANNELS.SHOW_CONTEXT_MENU, () => {
-    const locale = (getStore() as any).get('locale', 'ko') as Locale;
+    const locale = (getStore() as any).get('locale', DEFAULT_LOCALE) as Locale;
     const menu = Menu.buildFromTemplate([
       {
         label: win.isVisible() ? 'Hide Mama' : 'Show Mama',

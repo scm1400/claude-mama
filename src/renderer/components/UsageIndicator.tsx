@@ -1,6 +1,6 @@
 import React, { CSSProperties, useState, useEffect } from 'react';
 import { MamaMood, MamaErrorExpression, Locale } from '../../shared/types';
-import { t } from '../../shared/i18n';
+import { t, DEFAULT_LOCALE } from '../../shared/i18n';
 
 type Expression = MamaMood | MamaErrorExpression;
 
@@ -109,7 +109,7 @@ export function FiveHourBar({ fiveHourPercent, fiveHourResetsAt, stale }: {
 }
 
 /** Offline / rate-limited text for no-data state */
-export function OfflineLabel({ locale = 'ko', rateLimited = false }: { locale?: Locale; rateLimited?: boolean }) {
+export function OfflineLabel({ locale = DEFAULT_LOCALE, rateLimited = false }: { locale?: Locale; rateLimited?: boolean }) {
   return (
     <div style={{
       marginTop: 6,

@@ -2,7 +2,7 @@ import { BrowserWindow, dialog, Notification, app } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { getStore } from './ipc-handlers';
-import { t } from '../shared/i18n';
+import { t, DEFAULT_LOCALE } from '../shared/i18n';
 import { MamaState, Locale } from '../shared/types';
 import { getQuoteById } from '../core/quote-registry';
 
@@ -54,7 +54,7 @@ export async function generateShareCard(quoteId?: string): Promise<boolean> {
   if (isGenerating) return false;
   isGenerating = true;
 
-  const locale = getStore().get('locale', 'ko') as Locale;
+  const locale = getStore().get('locale', DEFAULT_LOCALE) as Locale;
 
   try {
     if (!currentMamaState) {

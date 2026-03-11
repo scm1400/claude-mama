@@ -5,11 +5,12 @@ import { showSettingsWindow } from './settings-window';
 import { updateAutoLaunch } from './auto-launch';
 import { QuoteCollectionManager } from '../core/quote-collection';
 import { generateShareCard } from './share-card';
+import { DEFAULT_LOCALE } from '../shared/i18n';
 
 const defaults: Omit<MamaSettings, 'position'> = {
   autoStart: true,
   characterVisible: true,
-  locale: 'ko',
+  locale: DEFAULT_LOCALE,
 };
 
 const store = new Store({ defaults });

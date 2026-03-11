@@ -4,7 +4,7 @@ import { autoUpdater } from 'electron-updater';
 import { showSettingsWindow } from './settings-window';
 import { generateShareCard } from './share-card';
 import { getStore } from './ipc-handlers';
-import { t } from '../shared/i18n';
+import { t, DEFAULT_LOCALE } from '../shared/i18n';
 import { Locale } from '../shared/types';
 
 let trayInstance: Tray | null = null;
@@ -49,7 +49,7 @@ function updateContextMenu(mainWindow: BrowserWindow): void {
   if (!trayInstance) return;
 
   const isVisible = mainWindow.isVisible();
-  const locale = getStore().get('locale', 'ko') as Locale;
+  const locale = getStore().get('locale', DEFAULT_LOCALE) as Locale;
 
   const contextMenu = Menu.buildFromTemplate([
     {

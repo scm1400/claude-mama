@@ -1,5 +1,26 @@
 import { Locale } from './types';
 
+const SUPPORTED_LOCALES: Locale[] = ['ko', 'en', 'ja', 'zh'];
+
+/** Detect locale from OS language, fallback to 'en' */
+export function detectLocale(): Locale {
+  let lang = '';
+  try {
+    // Electron main process
+    const { app } = require('electron');
+    lang = app.getLocale();
+  } catch {
+    // Renderer or non-Electron: use navigator
+    if (typeof navigator !== 'undefined') {
+      lang = navigator.language;
+    }
+  }
+  const prefix = lang.slice(0, 2).toLowerCase() as Locale;
+  return SUPPORTED_LOCALES.includes(prefix) ? prefix : 'en';
+}
+
+export const DEFAULT_LOCALE: Locale = detectLocale();
+
 /** UI string keys used across the app */
 const UI_STRINGS = {
   ko: {
@@ -211,7 +232,7 @@ const UI_STRINGS = {
 export type UIStringKey = keyof typeof UI_STRINGS.ko;
 
 export function t(locale: Locale, key: UIStringKey): string {
-  return UI_STRINGS[locale]?.[key] ?? UI_STRINGS.ko[key];
+  return UI_STRINGS[locale]?.[key] ?? UI_STRINGS.en[key];
 }
 
 export const LOCALE_LABELS: Record<Locale, string> = {

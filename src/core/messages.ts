@@ -1,4 +1,5 @@
 import { MamaMood, MamaErrorExpression, Locale } from '../shared/types';
+import { DEFAULT_LOCALE } from '../shared/i18n';
 
 type MoodKey = MamaMood | MamaErrorExpression | 'fiveHourWarning' | 'rateLimited';
 
@@ -392,8 +393,8 @@ const MESSAGE_POOLS: Record<Locale, Record<MoodKey, string[]>> = {
 /**
  * Returns a message for the given mood and locale, stable within the same 2-minute window.
  */
-export function getMessage(mood: MoodKey, locale: Locale = 'ko'): string {
-  const pool = MESSAGE_POOLS[locale]?.[mood] ?? MESSAGE_POOLS.ko[mood];
+export function getMessage(mood: MoodKey, locale: Locale = DEFAULT_LOCALE): string {
+  const pool = MESSAGE_POOLS[locale]?.[mood] ?? MESSAGE_POOLS.en[mood];
   const windowSeed = Math.floor(Date.now() / 120_000);
   const index = windowSeed % pool.length;
   return pool[index];

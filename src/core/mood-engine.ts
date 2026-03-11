@@ -1,5 +1,6 @@
 import { MamaState, Locale } from '../shared/types';
 import { getMessage } from './messages';
+import { DEFAULT_LOCALE } from '../shared/i18n';
 
 export interface UsageInput {
   weeklyUtilization: number | null;
@@ -27,7 +28,7 @@ export function computeMood(input: UsageInput): MamaState {
     dataSource = 'none',
     stale = false,
     rateLimited = false,
-    locale = 'ko',
+    locale = DEFAULT_LOCALE,
   } = input;
 
   // No credentials → sleeping

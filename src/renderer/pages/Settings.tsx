@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { MamaSettings, MamaState, Locale } from '../../shared/types';
-import { t, LOCALE_LABELS, UIStringKey } from '../../shared/i18n';
+import { t, LOCALE_LABELS, UIStringKey, DEFAULT_LOCALE } from '../../shared/i18n';
 import Collection from './Collection';
 
 const LOCALES: Locale[] = ['ko', 'en', 'ja', 'zh'];
@@ -9,7 +9,7 @@ export default function Settings() {
   const [settings, setSettings] = useState<MamaSettings>({
     autoStart: true,
     characterVisible: true,
-    locale: 'ko',
+    locale: DEFAULT_LOCALE,
   });
   const [mamaState, setMamaState] = useState<MamaState | null>(null);
   const [saved, setSaved] = useState(false);

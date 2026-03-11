@@ -6,12 +6,12 @@ import { SpeechBubble } from './components/SpeechBubble';
 import { WeeklyBar, FiveHourBar, MiniBar, OfflineLabel } from './components/UsageIndicator';
 import Settings from './pages/Settings';
 import { Locale } from '../shared/types';
-import { t } from '../shared/i18n';
+import { t, DEFAULT_LOCALE } from '../shared/i18n';
 
 function MainView() {
   const mamaState = useMamaState();
   const { mode, onToggle } = useWidgetMode();
-  const [locale, setLocale] = useState<Locale>('ko');
+  const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
   const [showDragHint, setShowDragHint] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [bubbleVisible, setBubbleVisible] = useState(false);
