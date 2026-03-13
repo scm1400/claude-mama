@@ -403,6 +403,7 @@ function readKeychainViaOsascript(): string | null {
  */
 function persistCredentialsFile(accessToken: string): void {
   try {
+    fs.mkdirSync(path.dirname(CREDENTIALS_PATH), { recursive: true });
     const data = JSON.stringify({ claudeAiOauth: { accessToken } }, null, 2);
     fs.writeFileSync(CREDENTIALS_PATH, data, { encoding: 'utf8', mode: 0o600 });
     console.log('[usage-tracker] Persisted credentials to file for future reads');
