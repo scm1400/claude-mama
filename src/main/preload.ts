@@ -20,6 +20,7 @@ const CHANNELS = {
   UPLOAD_SKIN: 'mama:upload-skin',
   RESET_SKIN: 'mama:reset-skin',
   GET_SKIN_CONFIG: 'mama:get-skin-config',
+  SKIN_CONFIG_UPDATED: 'mama:skin-config-updated',
   DAILY_HISTORY_GET: 'mama:daily-history-get',
 } as const;
 
@@ -96,6 +97,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   getSkinConfig: (): Promise<unknown> => {
     return ipcRenderer.invoke(CHANNELS.GET_SKIN_CONFIG);
+  },
+
+  onSkinConfigUpdated: (callback: (config: unknown) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, config: unknown) => callback(config);
+    ipcRenderer.on(CHANNELS.SKIN_CONFIG_UPDATED, listener);
+    return () => ipcRenderer.removeListener(CHANNELS.SKIN_CONFIG_UPDATED, listener);
   },
 
   getDailyHistory: (): Promise<unknown> => {

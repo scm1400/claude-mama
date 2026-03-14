@@ -35,6 +35,9 @@ function MainView() {
     window.electronAPI.getSkinConfig().then((c) => {
       if (c) setSkinConfig(c as SkinConfig);
     });
+    return window.electronAPI.onSkinConfigUpdated((c) => {
+      if (c) setSkinConfig(c as SkinConfig);
+    });
   }, []);
 
   // First-run drag hint

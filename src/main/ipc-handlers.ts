@@ -52,9 +52,14 @@ export function registerIpcHandlers(
       mainWindow.setAlwaysOnTop(settings.alwaysOnTop);
     }
 
-    // Save skin config if provided
+    // Save skin config if provided and broadcast to all windows
     if (settings.skin) {
       saveSkinConfig(settings.skin as SkinConfig);
+      for (const w of BrowserWindow.getAllWindows()) {
+        if (!w.isDestroyed()) {
+          w.webContents.send(IPC_CHANNELS.SKIN_CONFIG_UPDATED, settings.skin);
+        }
+      }
     }
 
     // Re-broadcast state with updated settings (e.g. locale change)

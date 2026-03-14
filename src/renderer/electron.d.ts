@@ -25,6 +25,7 @@ declare global {
       uploadSkin(mood?: string): Promise<string | null>;
       resetSkin(): Promise<unknown>;
       getSkinConfig(): Promise<unknown>;
+      onSkinConfigUpdated(callback: (config: unknown) => void): () => void;
       getDailyHistory(): Promise<unknown>;
     };
   }
