@@ -15,6 +15,8 @@ const CHANNELS = {
   SAVE_POSITION: 'mama:save-position',
   MOVE_WINDOW: 'mama:move-window',
   SHOW_CONTEXT_MENU: 'mama:show-context-menu',
+  BADGE_GET: 'mama:badge-get',
+  BADGE_UNLOCKED: 'mama:badge-unlocked',
 } as const;
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -68,5 +70,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   showContextMenu: (): void => {
     ipcRenderer.send(CHANNELS.SHOW_CONTEXT_MENU);
+  },
+
+  getBadges: (): Promise<unknown> => {
+    return ipcRenderer.invoke(CHANNELS.BADGE_GET);
+  },
+
+  onBadgeUnlocked: (callback: (badgeIds: string[]) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, ids: string[]) => callback(ids);
+    ipcRenderer.on(CHANNELS.BADGE_UNLOCKED, listener);
+    return () => ipcRenderer.removeListener(CHANNELS.BADGE_UNLOCKED, listener);
   },
 });

@@ -5,6 +5,7 @@ import { showSettingsWindow } from './settings-window';
 import { updateAutoLaunch } from './auto-launch';
 import { QuoteCollectionManager } from '../core/quote-collection';
 import { generateShareCard } from './share-card';
+import { BadgeManager } from '../core/badge-manager';
 import { DEFAULT_LOCALE } from '../shared/i18n';
 
 const defaults: MamaSettings = {
@@ -29,6 +30,7 @@ export function setOnSettingsChanged(callback: () => void): void {
 export function registerIpcHandlers(
   mainWindow?: BrowserWindow,
   collectionManager?: QuoteCollectionManager,
+  badgeManager?: BadgeManager,
 ): void {
   ipcMain.handle(IPC_CHANNELS.SETTINGS_GET, () => {
     return store.store;
@@ -67,5 +69,10 @@ export function registerIpcHandlers(
   // Share card
   ipcMain.handle(IPC_CHANNELS.SHARE_CARD, async (_event, quoteId?: string) => {
     return generateShareCard(quoteId);
+  });
+
+  // Badges
+  ipcMain.handle(IPC_CHANNELS.BADGE_GET, () => {
+    return badgeManager?.getState() ?? null;
   });
 }

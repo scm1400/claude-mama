@@ -5,8 +5,10 @@ import { showSettingsWindow } from './settings-window';
 import { UsageTracker } from '../core/usage-tracker';
 import { computeMood } from '../core/mood-engine';
 import { getCurrentCommonQuoteId } from '../core/messages';
-import { IPC_CHANNELS, MamaState, MamaMood, TriggerContext, DailyUtilRecord, Locale } from '../shared/types';
+import { IPC_CHANNELS, MamaState, MamaMood, TriggerContext, DailyUtilRecord, Locale, BadgeTriggerContext } from '../shared/types';
 import { getContextualMessage } from '../core/contextual-messages';
+import { BadgeManager } from '../core/badge-manager';
+import { evaluateBadgeTriggers } from '../core/badge-triggers';
 import { createTray } from './tray';
 import { syncAutoLaunch } from './auto-launch';
 import { initAutoUpdater } from './auto-updater';
@@ -28,6 +30,9 @@ let collectionManager: QuoteCollectionManager;
 let dailyHistory: DailyUtilRecord[] = [];
 let installDate: string;
 let firstApiCallSeen: boolean;
+let badgeManager: BadgeManager;
+let moodCounts: Record<string, number> = { angry: 0, worried: 0, happy: 0, proud: 0 };
+let previousMood: string | null = null;
 
 function broadcastState(): void {
   if (!lastUsageInput) return;
@@ -81,6 +86,31 @@ function broadcastState(): void {
     }
   }
 
+  // Track mood transitions for badge triggers
+  if (previousMood !== state.mood) {
+    if (['angry', 'worried', 'happy', 'proud'].includes(state.mood)) {
+      moodCounts[state.mood] = (moodCounts[state.mood] || 0) + 1;
+      (getStore() as any).set('moodCounts', moodCounts);
+    }
+    previousMood = state.mood;
+  }
+
+  // Evaluate badge triggers (BEFORE firstApiCallSeen flip so badge_first_call can trigger)
+  const badgeCtx: BadgeTriggerContext = {
+    ...ctx,
+    proudCount: moodCounts.proud || 0,
+    angryCount: moodCounts.angry || 0,
+  };
+  const newBadges = badgeManager.processTriggered(evaluateBadgeTriggers(badgeCtx), now);
+  if (newBadges.length > 0) {
+    (getStore() as any).set('unlockedBadges', badgeManager.serialize());
+    for (const w of BrowserWindow.getAllWindows()) {
+      if (!w.isDestroyed()) {
+        w.webContents.send(IPC_CHANNELS.BADGE_UNLOCKED, newBadges);
+      }
+    }
+  }
+
   if (!firstApiCallSeen && state.utilizationPercent > 0) {
     firstApiCallSeen = true;
     (getStore() as any).set('firstApiCallSeen', true);
@@ -94,7 +124,7 @@ function broadcastState(): void {
   } else {
     dailyHistory.push({ date: today, percent: state.utilizationPercent });
   }
-  dailyHistory = dailyHistory.slice(-14);
+  dailyHistory = dailyHistory.slice(-30); // was -14, increased for badge_streak_30
   (getStore() as any).set('dailyUtilization', dailyHistory);
 
   for (const w of BrowserWindow.getAllWindows()) {
@@ -177,11 +207,14 @@ app.whenReady().then(async () => {
   }
   firstApiCallSeen = (storeInstance as any).get('firstApiCallSeen', false) as boolean;
   dailyHistory = (storeInstance as any).get('dailyUtilization', []) as DailyUtilRecord[];
+  const persistedBadges = (storeInstance as any).get('unlockedBadges', []) as any[];
+  badgeManager = new BadgeManager(persistedBadges);
+  moodCounts = (storeInstance as any).get('moodCounts', { angry: 0, worried: 0, happy: 0, proud: 0 }) as Record<string, number>;
 
   const win = createWindow();
 
   // Register IPC handlers with main window so position changes can be applied
-  registerIpcHandlers(win, collectionManager);
+  registerIpcHandlers(win, collectionManager, badgeManager);
   setOnSettingsChanged(() => broadcastState());
 
   // Dynamic mouse event switching (hit-test pattern)
