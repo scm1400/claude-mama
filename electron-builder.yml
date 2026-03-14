@@ -45,8 +45,6 @@ linux:
         - x64
   icon: build/icon.png
   category: Utility
-  desktop:
-    StartupWMClass: claude-mama
 nsis:
   oneClick: true
   allowToChangeInstallationDirectory: false
