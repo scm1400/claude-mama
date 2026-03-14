@@ -5,7 +5,8 @@ import { showSettingsWindow } from './settings-window';
 import { UsageTracker } from '../core/usage-tracker';
 import { computeMood } from '../core/mood-engine';
 import { getCurrentCommonQuoteId } from '../core/messages';
-import { IPC_CHANNELS, MamaState, TriggerContext, DailyUtilRecord, Locale } from '../shared/types';
+import { IPC_CHANNELS, MamaState, MamaMood, TriggerContext, DailyUtilRecord, Locale } from '../shared/types';
+import { getContextualMessage } from '../core/contextual-messages';
 import { createTray } from './tray';
 import { syncAutoLaunch } from './auto-launch';
 import { initAutoUpdater } from './auto-updater';
@@ -46,7 +47,22 @@ function broadcastState(): void {
     installDate,
     firstApiCallSeen,
     now,
+    resetsAt: state.resetsAt,
   };
+
+  // Override message with contextual variant if applicable
+  // Do NOT override fiveHourWarning messages (safety-critical) or rateLimited messages
+  const isMamaMood = ['angry', 'worried', 'happy', 'proud'].includes(state.mood);
+  const hasFiveHourWarning = state.fiveHourPercent !== null && state.fiveHourPercent > 90;
+  if (isMamaMood && !state.rateLimited && !hasFiveHourWarning) {
+    const locale = getStore().get('locale', DEFAULT_LOCALE) as Locale;
+    const contextualMsg = getContextualMessage(
+      state.mood as MamaMood,
+      locale,
+      ctx,
+    );
+    state.message = contextualMsg;
+  }
 
   // Determine which common quote is currently displayed for collection tracking
   const moodKey = state.mood as string;
