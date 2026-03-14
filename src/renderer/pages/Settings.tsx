@@ -407,7 +407,7 @@ export default function Settings() {
                   </div>
                 </div>
                 {/* Heatmap grid - 30 days, 6 cols x 5 rows, newest at bottom-right */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 3 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 2 }}>
                   {(() => {
                     // Build 30-day array (pad with empty days if needed)
                     const today = new Date();
@@ -426,7 +426,7 @@ export default function Settings() {
                         style={{
                           width: '100%',
                           aspectRatio: '1',
-                          borderRadius: 3,
+                          borderRadius: 2,
                           background: cell.percent < 0 ? '#f3f4f6' : getMoodColor(cell.percent),
                           transition: 'background 0.3s ease',
                         }}

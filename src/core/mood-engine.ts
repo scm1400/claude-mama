@@ -100,29 +100,46 @@ export function computeMood(input: UsageInput): MamaState {
     };
   }
 
-  // Determine mood from 2-axis matrix (weekly × 5-hour)
+  // Normalize weekly utilization by pacing (elapsed time in reset window)
+  // If >= 1 day elapsed and resetsAt is known, use normalized value
+  // If < 1 day elapsed or no resetsAt, use absolute value
+  let effectiveWeekly = weeklyUtilization;
+  if (resetsAt) {
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+    const resetTime = new Date(resetsAt).getTime();
+    const now = Date.now();
+    const remaining = resetTime - now;
+    const elapsed = SEVEN_DAYS_MS - remaining;
+    if (elapsed >= ONE_DAY_MS && elapsed > 0) {
+      const elapsedFraction = elapsed / SEVEN_DAYS_MS;
+      effectiveWeekly = weeklyUtilization / elapsedFraction;
+    }
+  }
+
+  // Determine mood from 2-axis matrix (effectiveWeekly × 5-hour)
   // When fiveHourUtilization is null, fall back to single-axis thresholds
   let mood: MamaState['mood'];
   if (fiveHourUtilization === null) {
-    // Fallback: original single-axis thresholds
-    if (weeklyUtilization < 25) mood = 'angry';
-    else if (weeklyUtilization < 60) mood = 'worried';
-    else if (weeklyUtilization < 85) mood = 'happy';
+    // Fallback: single-axis thresholds with pacing-normalized value
+    if (effectiveWeekly < 25) mood = 'angry';
+    else if (effectiveWeekly < 60) mood = 'worried';
+    else if (effectiveWeekly < 85) mood = 'happy';
     else mood = 'proud';
   } else {
     // 2-axis mood matrix
-    //                  | 5hr < 30%  | 5hr 30-70% | 5hr > 70% |
-    // weekly < 25%     | angry      | angry      | worried   |
-    // weekly 25-60%    | worried    | happy      | happy     |
-    // weekly 60-85%    | worried    | happy      | proud     |
-    // weekly > 85%     | happy      | proud      | proud     |
+    //                          | 5hr < 30%  | 5hr 30-70% | 5hr > 70% |
+    // effectiveWeekly < 25%    | angry      | angry      | worried   |
+    // effectiveWeekly 25-60%   | worried    | happy      | happy     |
+    // effectiveWeekly 60-85%   | worried    | happy      | proud     |
+    // effectiveWeekly > 85%    | happy      | proud      | proud     |
     const fiveHourLevel = fiveHourUtilization < 30 ? 0 : fiveHourUtilization <= 70 ? 1 : 2;
 
-    if (weeklyUtilization < 25) {
+    if (effectiveWeekly < 25) {
       mood = fiveHourLevel >= 2 ? 'worried' : 'angry';
-    } else if (weeklyUtilization < 60) {
+    } else if (effectiveWeekly < 60) {
       mood = fiveHourLevel === 0 ? 'worried' : 'happy';
-    } else if (weeklyUtilization < 85) {
+    } else if (effectiveWeekly < 85) {
       mood = fiveHourLevel === 0 ? 'worried' : fiveHourLevel === 1 ? 'happy' : 'proud';
     } else {
       mood = fiveHourLevel === 0 ? 'happy' : 'proud';

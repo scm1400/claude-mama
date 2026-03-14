@@ -135,6 +135,83 @@ describe('computeMood — 2-axis mood matrix', () => {
   });
 });
 
+describe('computeMood — pacing normalization', () => {
+  // Helper: create a resetsAt value N hours from now
+  function resetsInHours(h: number): string {
+    return new Date(Date.now() + h * 3600_000).toISOString();
+  }
+
+  it('16% with 5d16h remaining (1d8h elapsed) → normalized ~84% → happy', () => {
+    // 5d16h = 136h remaining, so resetsAt is 136h from now
+    const state = computeMood({
+      weeklyUtilization: 16,
+      fiveHourUtilization: null,
+      error: null,
+      resetsAt: resetsInHours(136), // 5d16h remaining
+    });
+    // elapsed = 7d - 5d16h = 1d8h = 32h. elapsedFraction = 32/168 ≈ 0.19
+    // effectiveWeekly = 16 / 0.19 ≈ 84 → happy
+    expect(state.mood).toBe('happy');
+  });
+
+  it('10% with 3d remaining (4d elapsed) → normalized ~17.5% → angry', () => {
+    const state = computeMood({
+      weeklyUtilization: 10,
+      fiveHourUtilization: null,
+      error: null,
+      resetsAt: resetsInHours(72), // 3d remaining
+    });
+    // elapsed = 4d. elapsedFraction = 4/7 ≈ 0.571
+    // effectiveWeekly = 10 / 0.571 ≈ 17.5 → angry (< 25)
+    expect(state.mood).toBe('angry');
+  });
+
+  it('50% with 3.5d remaining (3.5d elapsed) → normalized ~100% → proud', () => {
+    const state = computeMood({
+      weeklyUtilization: 50,
+      fiveHourUtilization: null,
+      error: null,
+      resetsAt: resetsInHours(84), // 3.5d remaining
+    });
+    // elapsed = 3.5d. elapsedFraction = 0.5
+    // effectiveWeekly = 50 / 0.5 = 100 → proud
+    expect(state.mood).toBe('proud');
+  });
+
+  it('< 1 day elapsed → uses absolute value (no normalization)', () => {
+    const state = computeMood({
+      weeklyUtilization: 10,
+      fiveHourUtilization: null,
+      error: null,
+      resetsAt: resetsInHours(158), // ~6d14h remaining → ~10h elapsed
+    });
+    // elapsed < 1 day, so absolute 10% → angry
+    expect(state.mood).toBe('angry');
+  });
+
+  it('no resetsAt → uses absolute value', () => {
+    const state = computeMood({
+      weeklyUtilization: 16,
+      fiveHourUtilization: null,
+      error: null,
+      resetsAt: null,
+    });
+    // No normalization, absolute 16% → angry
+    expect(state.mood).toBe('angry');
+  });
+
+  it('pacing normalization works with 2-axis matrix too', () => {
+    const state = computeMood({
+      weeklyUtilization: 16,
+      fiveHourUtilization: 50,
+      error: null,
+      resetsAt: resetsInHours(136), // 5d16h remaining → effectiveWeekly ≈ 84%
+    });
+    // effectiveWeekly ≈ 84 (60-85 range) + 5hr mid → happy
+    expect(state.mood).toBe('happy');
+  });
+});
+
 describe('computeMood — no fiveHourWarning override', () => {
   it('fiveHourUtilization > 90 does NOT produce fiveHourWarning message', () => {
     const state = computeMood({ weeklyUtilization: 20, fiveHourUtilization: 95, error: null });
