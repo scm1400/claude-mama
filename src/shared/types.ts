@@ -67,7 +67,10 @@ export interface TriggerContext {
   installDate: string; // ISO
   firstApiCallSeen: boolean;
   now: Date;
+  resetsAt?: string | null;
 }
+
+export type ContextTrigger = 'weekend' | 'unusedStreak' | 'spike' | 'resetImminent';
 
 /** IPC channel names */
 export const IPC_CHANNELS = {
