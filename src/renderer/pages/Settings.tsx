@@ -19,6 +19,7 @@ export default function Settings() {
 
   const [skinConfig, setSkinConfig] = useState<SkinConfig>({ mode: 'default' });
   const [showAdvancedSkin, setShowAdvancedSkin] = useState(false);
+  const [hoveredCell, setHoveredCell] = useState<{ date: string; percent: number; x: number; y: number } | null>(null);
   const [dailyHistory, setDailyHistory] = useState<DailyUtilRecord[]>([]);
 
   const locale = settings.locale;
@@ -422,18 +423,45 @@ export default function Settings() {
                     return cells.map((cell) => (
                       <div
                         key={cell.date}
-                        title={`${cell.date}: ${cell.percent >= 0 ? cell.percent.toFixed(0) + '%' : 'N/A'}`}
+                        onMouseEnter={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setHoveredCell({ date: cell.date, percent: cell.percent, x: rect.left + rect.width / 2, y: rect.top });
+                        }}
+                        onMouseLeave={() => setHoveredCell(null)}
                         style={{
                           width: '100%',
                           aspectRatio: '1',
                           borderRadius: 2,
                           background: cell.percent < 0 ? '#f3f4f6' : getMoodColor(cell.percent),
-                          transition: 'background 0.3s ease',
+                          transition: 'background 0.3s ease, transform 0.15s ease',
+                          cursor: 'default',
+                          transform: hoveredCell?.date === cell.date ? 'scale(1.3)' : 'scale(1)',
                         }}
                       />
                     ));
                   })()}
                 </div>
+                {/* Custom tooltip */}
+                {hoveredCell && (
+                  <div style={{
+                    position: 'fixed',
+                    left: hoveredCell.x,
+                    top: hoveredCell.y - 6,
+                    transform: 'translate(-50%, -100%)',
+                    background: '#1f2937',
+                    color: '#fff',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    padding: '3px 8px',
+                    borderRadius: 4,
+                    whiteSpace: 'nowrap',
+                    pointerEvents: 'none',
+                    zIndex: 100,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  }}>
+                    {hoveredCell.date.slice(5)} · {hoveredCell.percent >= 0 ? `${hoveredCell.percent.toFixed(0)}%` : 'N/A'}
+                  </div>
+                )}
                 {/* Legend */}
                 <div style={{ display: 'flex', gap: 8, marginTop: 6, justifyContent: 'center' }}>
                   {[
