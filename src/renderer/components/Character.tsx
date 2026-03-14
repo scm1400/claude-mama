@@ -1,5 +1,5 @@
 import React, { CSSProperties, forwardRef } from 'react';
-import { MamaMood, MamaErrorExpression } from '../../shared/types';
+import { MamaMood, MamaErrorExpression, SkinConfig } from '../../shared/types';
 import mamaPng from '../assets/claude-mama.png';
 
 type Expression = MamaMood | MamaErrorExpression;
@@ -8,6 +8,7 @@ interface CharacterProps {
   expression: Expression;
   hasNewMessage?: boolean;
   isDragging?: boolean;
+  skinConfig?: SkinConfig;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }
@@ -195,7 +196,39 @@ function MoodOverlay({ expression }: { expression: Expression }) {
 }
 
 export const Character = forwardRef<HTMLDivElement, CharacterProps>(
-  function Character({ expression, hasNewMessage, isDragging, onMouseEnter, onMouseLeave }, ref) {
+  function Character({ expression, hasNewMessage, isDragging, skinConfig, onMouseEnter, onMouseLeave }, ref) {
+    // Determine image source based on skin config
+    let imgSrc = mamaPng;
+    let spriteStyle: CSSProperties | null = null;
+
+    if (skinConfig) {
+      switch (skinConfig.mode) {
+        case 'single':
+          if (skinConfig.singleImagePath) imgSrc = `file://${skinConfig.singleImagePath}`;
+          break;
+        case 'per-mood':
+          if (skinConfig.moodImages?.[expression]) {
+            imgSrc = `file://${skinConfig.moodImages[expression]}`;
+          }
+          break;
+        case 'spritesheet':
+          if (skinConfig.spritesheet) {
+            const { imagePath, frameWidth, frameHeight, moodMap } = skinConfig.spritesheet;
+            const frame = moodMap[expression];
+            if (frame) {
+              imgSrc = `file://${imagePath}`;
+              spriteStyle = {
+                objectFit: 'none' as const,
+                width: frameWidth,
+                height: frameHeight,
+                objectPosition: `${-frame.col * frameWidth}px ${-frame.row * frameHeight}px`,
+              };
+            }
+          }
+          break;
+      }
+    }
+
     const hitAreaStyle: CSSProperties = {
       position: 'relative',
       width: HIT_AREA,
@@ -221,6 +254,7 @@ export const Character = forwardRef<HTMLDivElement, CharacterProps>(
       ...(expression === 'sleeping' ? { filter: 'brightness(0.85) saturate(0.7)', opacity: 0.8 } : {}),
       ...(expression === 'angry' ? { filter: 'saturate(1.2) brightness(1.05)' } : {}),
       ...(expression === 'proud' ? { filter: 'brightness(1.1) saturate(1.1)' } : {}),
+      ...(spriteStyle ?? {}),
     };
 
     const auraStyle = MOOD_AURA[expression];
@@ -234,7 +268,7 @@ export const Character = forwardRef<HTMLDivElement, CharacterProps>(
       >
         <div style={containerStyle}>
           {auraStyle && <div style={auraStyle as CSSProperties} />}
-          <img src={mamaPng} alt="Claude Mama" style={imgStyle} draggable={false} />
+          <img src={imgSrc} alt="Claude Mama" style={imgStyle} draggable={false} />
           <MoodOverlay expression={expression} />
         </div>
         {hasNewMessage && (

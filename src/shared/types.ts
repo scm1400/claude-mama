@@ -25,6 +25,8 @@ export interface MamaSettings {
   autoStart: boolean;
   characterVisible: boolean;
   locale: Locale;
+  alwaysOnTop: boolean;
+  skin?: SkinConfig;
 }
 
 /** Quote rarity tiers */
@@ -66,6 +68,52 @@ export interface TriggerContext {
   installDate: string; // ISO
   firstApiCallSeen: boolean;
   now: Date;
+  resetsAt?: string | null;
+}
+
+export type ContextTrigger = 'weekend' | 'unusedStreak' | 'spike' | 'resetImminent';
+
+export type BadgeTier = 'bronze' | 'silver' | 'gold';
+
+export interface BadgeEntry {
+  id: string;
+  tier: BadgeTier;
+  name: Record<Locale, string>;
+  description: Record<Locale, string>;
+  icon: string;
+}
+
+export interface UnlockedBadge {
+  id: string;
+  unlockedAt: string;
+}
+
+export interface BadgeState {
+  unlocked: UnlockedBadge[];
+  totalCount: number;
+  byTier: Record<BadgeTier, { unlocked: number; total: number }>;
+}
+
+export interface BadgeTriggerContext extends TriggerContext {
+  proudCount: number;
+  angryCount: number;
+}
+
+export type SkinMode = 'default' | 'single' | 'per-mood' | 'spritesheet';
+type Expression = MamaMood | MamaErrorExpression;
+
+export interface SkinConfig {
+  mode: SkinMode;
+  singleImagePath?: string;
+  moodImages?: Partial<Record<Expression, string>>;
+  spritesheet?: {
+    imagePath: string;
+    columns: number;
+    rows: number;
+    frameWidth: number;   // naturalWidth / columns — calculated at upload time
+    frameHeight: number;  // naturalHeight / rows — calculated at upload time
+    moodMap: Record<Expression, { col: number; row: number }>;
+  };
 }
 
 /** IPC channel names */
@@ -82,4 +130,9 @@ export const IPC_CHANNELS = {
   SAVE_POSITION: 'mama:save-position',
   MOVE_WINDOW: 'mama:move-window',
   SHOW_CONTEXT_MENU: 'mama:show-context-menu',
+  BADGE_GET: 'mama:badge-get',
+  BADGE_UNLOCKED: 'mama:badge-unlocked',
+  UPLOAD_SKIN: 'mama:upload-skin',
+  RESET_SKIN: 'mama:reset-skin',
+  GET_SKIN_CONFIG: 'mama:get-skin-config',
 } as const;

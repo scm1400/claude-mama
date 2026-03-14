@@ -1,16 +1,19 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import Store from 'electron-store';
-import { IPC_CHANNELS, MamaSettings } from '../shared/types';
+import { IPC_CHANNELS, MamaSettings, SkinConfig } from '../shared/types';
 import { showSettingsWindow } from './settings-window';
 import { updateAutoLaunch } from './auto-launch';
 import { QuoteCollectionManager } from '../core/quote-collection';
 import { generateShareCard } from './share-card';
+import { BadgeManager } from '../core/badge-manager';
 import { DEFAULT_LOCALE } from '../shared/i18n';
+import { uploadSkinImage, resetSkin, getSkinConfig, saveSkinConfig } from './skin-manager';
 
-const defaults: Omit<MamaSettings, 'position'> = {
+const defaults: MamaSettings = {
   autoStart: true,
   characterVisible: true,
   locale: DEFAULT_LOCALE,
+  alwaysOnTop: true,
 };
 
 const store = new Store({ defaults });
@@ -28,6 +31,7 @@ export function setOnSettingsChanged(callback: () => void): void {
 export function registerIpcHandlers(
   mainWindow?: BrowserWindow,
   collectionManager?: QuoteCollectionManager,
+  badgeManager?: BadgeManager,
 ): void {
   ipcMain.handle(IPC_CHANNELS.SETTINGS_GET, () => {
     return store.store;
@@ -41,6 +45,16 @@ export function registerIpcHandlers(
     // Sync auto-launch preference
     if (typeof settings.autoStart === 'boolean') {
       await updateAutoLaunch(settings.autoStart);
+    }
+
+    // Sync always-on-top preference
+    if (typeof settings.alwaysOnTop === 'boolean' && mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setAlwaysOnTop(settings.alwaysOnTop);
+    }
+
+    // Save skin config if provided
+    if (settings.skin) {
+      saveSkinConfig(settings.skin as SkinConfig);
     }
 
     // Re-broadcast state with updated settings (e.g. locale change)
@@ -61,5 +75,24 @@ export function registerIpcHandlers(
   // Share card
   ipcMain.handle(IPC_CHANNELS.SHARE_CARD, async (_event, quoteId?: string) => {
     return generateShareCard(quoteId);
+  });
+
+  // Badges
+  ipcMain.handle(IPC_CHANNELS.BADGE_GET, () => {
+    return badgeManager?.getState() ?? null;
+  });
+
+  // Skin
+  ipcMain.handle(IPC_CHANNELS.UPLOAD_SKIN, async (_event, mood?: string) => {
+    return uploadSkinImage(mood);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.RESET_SKIN, () => {
+    resetSkin();
+    return { mode: 'default' };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.GET_SKIN_CONFIG, () => {
+    return getSkinConfig();
   });
 }

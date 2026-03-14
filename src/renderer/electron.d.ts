@@ -20,6 +20,11 @@ declare global {
       savePosition(x: number, y: number): void;
       moveWindow(x: number, y: number): void;
       showContextMenu(): void;
+      getBadges(): Promise<unknown>;
+      onBadgeUnlocked(callback: (badgeIds: string[]) => void): () => void;
+      uploadSkin(mood?: string): Promise<string | null>;
+      resetSkin(): Promise<unknown>;
+      getSkinConfig(): Promise<unknown>;
     };
   }
 }

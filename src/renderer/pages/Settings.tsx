@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MamaSettings, MamaState, Locale } from '../../shared/types';
+import { MamaSettings, MamaState, Locale, SkinConfig, SkinMode, MamaMood, MamaErrorExpression } from '../../shared/types';
 import { t, LOCALE_LABELS, UIStringKey, DEFAULT_LOCALE } from '../../shared/i18n';
 import Collection from './Collection';
 
@@ -10,14 +10,51 @@ export default function Settings() {
     autoStart: true,
     characterVisible: true,
     locale: DEFAULT_LOCALE,
+    alwaysOnTop: true,
   });
   const [mamaState, setMamaState] = useState<MamaState | null>(null);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'settings' | 'collection'>('settings');
 
+  const [skinConfig, setSkinConfig] = useState<SkinConfig>({ mode: 'default' });
+  const [showAdvancedSkin, setShowAdvancedSkin] = useState(false);
+
   const locale = settings.locale;
   const i = (key: UIStringKey) => t(locale, key);
+
+  const EXPRESSIONS: (MamaMood | MamaErrorExpression)[] = ['angry', 'worried', 'happy', 'proud', 'confused', 'sleeping'];
+
+  // Auto-save skin config whenever it changes (no separate save button needed)
+  const saveSkinConfig = async (config: SkinConfig) => {
+    setSkinConfig(config);
+    await window.electronAPI.setSettings({ skin: config } as Partial<MamaSettings>);
+  };
+
+  const handleSkinModeChange = async (mode: SkinMode) => {
+    const newConfig = { ...skinConfig, mode };
+    await saveSkinConfig(newConfig);
+  };
+
+  const handleSkinUpload = async (mood?: string) => {
+    const filePath = await window.electronAPI.uploadSkin(mood);
+    if (!filePath) return;
+
+    let newConfig = { ...skinConfig };
+    if (skinConfig.mode === 'single') {
+      newConfig.singleImagePath = filePath;
+    } else if (skinConfig.mode === 'per-mood' && mood) {
+      newConfig.moodImages = { ...newConfig.moodImages, [mood]: filePath };
+    } else if (skinConfig.mode === 'spritesheet') {
+      newConfig.spritesheet = { ...newConfig.spritesheet!, imagePath: filePath };
+    }
+    await saveSkinConfig(newConfig);
+  };
+
+  const handleSkinReset = async () => {
+    await window.electronAPI.resetSkin();
+    setSkinConfig({ mode: 'default' });
+  };
 
   useEffect(() => {
     window.electronAPI.getSettings().then((s) => {
@@ -26,6 +63,9 @@ export default function Settings() {
     });
     window.electronAPI.getMamaState().then((state) => {
       if (state) setMamaState(state as MamaState);
+    });
+    window.electronAPI.getSkinConfig().then((c) => {
+      if (c) setSkinConfig(c as SkinConfig);
     });
     const unsub = window.electronAPI.onMamaStateUpdate((state) => {
       setMamaState(state as MamaState);
@@ -108,6 +148,217 @@ export default function Settings() {
                 <div style={{ ...s.toggleKnob, transform: settings.autoStart ? 'translateX(16px)' : 'translateX(0)' }} />
               </div>
             </label>
+          </div>
+
+          {/* Always on Top */}
+          <div style={s.card}>
+            <label style={s.toggleRow}>
+              <span>{i('always_on_top')}</span>
+              <div
+                style={{ ...s.toggle, background: settings.alwaysOnTop ? '#ec4899' : '#d1d5db' }}
+                onClick={() => setSettings((prev) => ({ ...prev, alwaysOnTop: !prev.alwaysOnTop }))}
+              >
+                <div style={{ ...s.toggleKnob, transform: settings.alwaysOnTop ? 'translateX(16px)' : 'translateX(0)' }} />
+              </div>
+            </label>
+          </div>
+
+          {/* Character Skin */}
+          <div style={s.card}>
+            <div style={s.cardLabel}>{i('character_skin')}</div>
+
+            {/* Simple mode selection: Default / Single / Per-Mood */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 10 }}>
+              {(['default', 'single', 'per-mood'] as SkinMode[]).map((mode) => {
+                const labels: Record<string, UIStringKey> = { 'default': 'skin_default', 'single': 'skin_single', 'per-mood': 'skin_per_mood' };
+                return (
+                  <button
+                    key={mode}
+                    style={{
+                      ...s.posBtn,
+                      ...(skinConfig.mode === mode ? s.posBtnActive : {}),
+                      fontSize: 11,
+                    }}
+                    onClick={() => handleSkinModeChange(mode)}
+                  >
+                    {i(labels[mode])}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Advanced: Spritesheet (collapsible) */}
+            <button
+              style={{
+                ...s.advancedToggle,
+                color: showAdvancedSkin || skinConfig.mode === 'spritesheet' ? '#ec4899' : '#9ca3af',
+              }}
+              onClick={() => setShowAdvancedSkin(!showAdvancedSkin)}
+            >
+              {showAdvancedSkin ? '▾' : '▸'} {i('skin_spritesheet')}
+            </button>
+            {(showAdvancedSkin || skinConfig.mode === 'spritesheet') && (
+              <button
+                style={{
+                  ...s.posBtn,
+                  ...(skinConfig.mode === 'spritesheet' ? s.posBtnActive : {}),
+                  fontSize: 11, marginTop: 4, width: '100%',
+                }}
+                onClick={() => handleSkinModeChange('spritesheet')}
+              >
+                {skinConfig.mode === 'spritesheet' ? '✓ ' : ''}{i('skin_spritesheet')}
+              </button>
+            )}
+
+            {/* Single image upload */}
+            {skinConfig.mode === 'single' && (
+              <div style={{ marginTop: 10 }}>
+                <div
+                  style={s.dropZone}
+                  onClick={() => handleSkinUpload()}
+                >
+                  {skinConfig.singleImagePath ? (
+                    <img
+                      src={`file://${skinConfig.singleImagePath}`}
+                      alt={i('skin_preview')}
+                      style={{ width: 60, height: 60, objectFit: 'contain', imageRendering: 'pixelated' }}
+                    />
+                  ) : (
+                    <div style={s.dropZoneEmpty}>
+                      <span style={{ fontSize: 20 }}>+</span>
+                      <span style={{ fontSize: 10, color: '#9ca3af' }}>{i('skin_upload')}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Per-mood uploads */}
+            {skinConfig.mode === 'per-mood' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 10 }}>
+                {EXPRESSIONS.map((expr) => {
+                  const mk = `mood_${expr}` as UIStringKey;
+                  const imgPath = skinConfig.moodImages?.[expr];
+                  return (
+                    <div
+                      key={expr}
+                      style={{ ...s.moodSlot, borderColor: imgPath ? '#22c55e' : '#e5e7eb' }}
+                      onClick={() => handleSkinUpload(expr)}
+                    >
+                      {imgPath ? (
+                        <img
+                          src={`file://${imgPath}`}
+                          alt={expr}
+                          style={{ width: 50, height: 50, objectFit: 'contain', imageRendering: 'pixelated' }}
+                        />
+                      ) : (
+                        <div style={{ width: 50, height: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d1d5db', fontSize: 18 }}>+</div>
+                      )}
+                      <span style={{ fontSize: 9, color: imgPath ? '#22c55e' : '#6b7280', fontWeight: 600, marginTop: 2 }}>
+                        {i(mk)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Spritesheet config */}
+            {skinConfig.mode === 'spritesheet' && (
+              <div style={{ marginTop: 10 }}>
+                <div
+                  style={s.dropZone}
+                  onClick={() => handleSkinUpload()}
+                >
+                  {skinConfig.spritesheet?.imagePath ? (
+                    <img
+                      src={`file://${skinConfig.spritesheet.imagePath}`}
+                      alt={i('skin_preview')}
+                      style={{ maxWidth: '100%', maxHeight: 100, objectFit: 'contain', imageRendering: 'pixelated' }}
+                    />
+                  ) : (
+                    <div style={s.dropZoneEmpty}>
+                      <span style={{ fontSize: 20 }}>+</span>
+                      <span style={{ fontSize: 10, color: '#9ca3af' }}>{i('skin_upload')}</span>
+                    </div>
+                  )}
+                </div>
+                {skinConfig.spritesheet?.imagePath && (
+                  <>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                      <label style={{ flex: 1, fontSize: 11, color: '#6b7280' }}>
+                        {i('skin_columns')}
+                        <input
+                          type="number" min={1} max={16}
+                          value={skinConfig.spritesheet?.columns ?? 1}
+                          onChange={(e) => {
+                            const cols = parseInt(e.target.value) || 1;
+                            saveSkinConfig({ ...skinConfig, spritesheet: { ...skinConfig.spritesheet!, columns: cols } });
+                          }}
+                          style={s.numInput}
+                        />
+                      </label>
+                      <label style={{ flex: 1, fontSize: 11, color: '#6b7280' }}>
+                        {i('skin_rows')}
+                        <input
+                          type="number" min={1} max={16}
+                          value={skinConfig.spritesheet?.rows ?? 1}
+                          onChange={(e) => {
+                            const rows = parseInt(e.target.value) || 1;
+                            saveSkinConfig({ ...skinConfig, spritesheet: { ...skinConfig.spritesheet!, rows } });
+                          }}
+                          style={s.numInput}
+                        />
+                      </label>
+                    </div>
+                    <div style={{ marginTop: 8 }}>
+                      <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 4 }}>Mood → Frame (col, row)</div>
+                      {EXPRESSIONS.map((expr) => {
+                        const frame = skinConfig.spritesheet?.moodMap?.[expr] ?? { col: 0, row: 0 };
+                        const mk = `mood_${expr}` as UIStringKey;
+                        return (
+                          <div key={expr} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                            <span style={{ width: 50, fontSize: 10, color: '#374151' }}>{i(mk)}</span>
+                            <input
+                              type="number" min={0} max={15} value={frame.col}
+                              style={{ ...s.numInput, width: 36, textAlign: 'center' }}
+                              onChange={(e) => {
+                                const col = parseInt(e.target.value) || 0;
+                                saveSkinConfig({
+                                  ...skinConfig,
+                                  spritesheet: { ...skinConfig.spritesheet!, moodMap: { ...skinConfig.spritesheet!.moodMap, [expr]: { ...frame, col } } },
+                                });
+                              }}
+                            />
+                            <input
+                              type="number" min={0} max={15} value={frame.row}
+                              style={{ ...s.numInput, width: 36, textAlign: 'center' }}
+                              onChange={(e) => {
+                                const row = parseInt(e.target.value) || 0;
+                                saveSkinConfig({
+                                  ...skinConfig,
+                                  spritesheet: { ...skinConfig.spritesheet!, moodMap: { ...skinConfig.spritesheet!.moodMap, [expr]: { ...frame, row } } },
+                                });
+                              }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Reset button (only when not default) */}
+            {skinConfig.mode !== 'default' && (
+              <button
+                style={s.resetBtn}
+                onClick={handleSkinReset}
+              >
+                {i('skin_reset')}
+              </button>
+            )}
           </div>
 
           {/* Status */}
@@ -255,5 +506,33 @@ const s: Record<string, React.CSSProperties> = {
   },
   tabActive: {
     color: '#ec4899', borderBottomColor: '#ec4899', fontWeight: 600,
+  },
+  dropZone: {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: 12, background: '#f9fafb', borderRadius: 8,
+    border: '2px dashed #e5e7eb', cursor: 'pointer',
+    transition: 'border-color 0.2s',
+  },
+  dropZoneEmpty: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+    color: '#9ca3af', padding: '8px 0',
+  },
+  moodSlot: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
+    padding: 6, borderRadius: 8, border: '2px solid #e5e7eb',
+    cursor: 'pointer', background: '#fafafa', transition: 'border-color 0.2s',
+  },
+  advancedToggle: {
+    background: 'none', border: 'none', fontSize: 11, fontWeight: 500,
+    cursor: 'pointer', padding: '4px 0', textAlign: 'left' as const,
+  },
+  resetBtn: {
+    width: '100%', marginTop: 10, padding: '8px 0', fontSize: 11, fontWeight: 500,
+    border: '1px solid #fecaca', borderRadius: 6,
+    background: '#fff', color: '#ef4444', cursor: 'pointer', textAlign: 'center',
+  },
+  numInput: {
+    width: '100%', padding: '4px 6px', fontSize: 12,
+    border: '1px solid #e5e7eb', borderRadius: 4, marginTop: 2,
   },
 };
