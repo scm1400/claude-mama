@@ -5,13 +5,14 @@ import { Character } from './components/Character';
 import { SpeechBubble } from './components/SpeechBubble';
 import { WeeklyBar, FiveHourBar, MiniBar, OfflineLabel } from './components/UsageIndicator';
 import Settings from './pages/Settings';
-import { Locale } from '../shared/types';
+import { Locale, SkinConfig } from '../shared/types';
 import { t, DEFAULT_LOCALE } from '../shared/i18n';
 
 function MainView() {
   const mamaState = useMamaState();
   const { mode, onToggle } = useWidgetMode();
   const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
+  const [skinConfig, setSkinConfig] = useState<SkinConfig | undefined>();
   const [showDragHint, setShowDragHint] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [bubbleVisible, setBubbleVisible] = useState(false);
@@ -27,6 +28,12 @@ function MainView() {
       if (s && (s as { locale?: Locale }).locale) {
         setLocale((s as { locale: Locale }).locale);
       }
+    });
+  }, []);
+
+  useEffect(() => {
+    window.electronAPI.getSkinConfig().then((c) => {
+      if (c) setSkinConfig(c as SkinConfig);
     });
   }, []);
 
@@ -169,6 +176,7 @@ function MainView() {
         ref={characterRef}
         expression={mood}
         isDragging={isDragging}
+        skinConfig={skinConfig}
       />
       {showDragHint && (
         <div style={{
