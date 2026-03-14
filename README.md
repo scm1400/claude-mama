@@ -117,10 +117,14 @@ Grab the latest installer from [**Releases**](https://github.com/scm1400/claude-
 |----------|------|------|
 | Windows | `Claude Mama Setup x.x.x.exe` | x64 |
 | macOS | `Claude Mama-x.x.x.dmg` | Universal (Intel + Apple Silicon) |
+| Linux | `Claude Mama-x.x.x.AppImage` | x64 |
+| Linux | `claude-mama_x.x.x_amd64.deb` | x64 |
 
 > **⚠️ Not code-signed:** Claude Mama is not code-signed yet, so your OS will show a security warning on first install.
 > - **Windows:** SmartScreen will say "Windows protected your PC." Click **More info** → **Run anyway**.
 > - **macOS:** You'll see "cannot be opened because the developer cannot be verified." Go to **System Settings** → **Privacy & Security** → **Open Anyway**.
+> - **Linux (AppImage):** `chmod +x Claude\ Mama-*.AppImage && ./Claude\ Mama-*.AppImage`
+> - **Linux (deb):** `sudo dpkg -i claude-mama_*.deb`
 
 ### First Launch
 

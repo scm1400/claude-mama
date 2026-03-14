@@ -35,6 +35,18 @@ mac:
   entitlementsInherit: build/entitlements.mac.plist
   notarize: false
 #afterSign: scripts/notarize.js
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+  icon: build/icon.png
+  category: Utility
+  desktop:
+    StartupWMClass: claude-mama
 nsis:
   oneClick: true
   allowToChangeInstallationDirectory: false
