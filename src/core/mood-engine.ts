@@ -100,25 +100,36 @@ export function computeMood(input: UsageInput): MamaState {
     };
   }
 
-  // Determine base mood from weekly utilization thresholds
+  // Determine mood from 2-axis matrix (weekly × 5-hour)
+  // When fiveHourUtilization is null, fall back to single-axis thresholds
   let mood: MamaState['mood'];
-  if (weeklyUtilization < 15) {
-    mood = 'angry';
-  } else if (weeklyUtilization < 50) {
-    mood = 'worried';
-  } else if (weeklyUtilization < 85) {
-    mood = 'happy';
+  if (fiveHourUtilization === null) {
+    // Fallback: original single-axis thresholds
+    if (weeklyUtilization < 25) mood = 'angry';
+    else if (weeklyUtilization < 60) mood = 'worried';
+    else if (weeklyUtilization < 85) mood = 'happy';
+    else mood = 'proud';
   } else {
-    mood = 'proud';
+    // 2-axis mood matrix
+    //                  | 5hr < 30%  | 5hr 30-70% | 5hr > 70% |
+    // weekly < 25%     | angry      | angry      | worried   |
+    // weekly 25-60%    | worried    | happy      | happy     |
+    // weekly 60-85%    | worried    | happy      | proud     |
+    // weekly > 85%     | happy      | proud      | proud     |
+    const fiveHourLevel = fiveHourUtilization < 30 ? 0 : fiveHourUtilization <= 70 ? 1 : 2;
+
+    if (weeklyUtilization < 25) {
+      mood = fiveHourLevel >= 2 ? 'worried' : 'angry';
+    } else if (weeklyUtilization < 60) {
+      mood = fiveHourLevel === 0 ? 'worried' : 'happy';
+    } else if (weeklyUtilization < 85) {
+      mood = fiveHourLevel === 0 ? 'worried' : fiveHourLevel === 1 ? 'happy' : 'proud';
+    } else {
+      mood = fiveHourLevel === 0 ? 'happy' : 'proud';
+    }
   }
 
-  // 5-hour override: if fiveHourUtilization > 90, emit warning message
-  const hasFiveHourWarning =
-    fiveHourUtilization !== null && fiveHourUtilization > 90;
-
-  const message = hasFiveHourWarning
-    ? getMessage('fiveHourWarning', locale)
-    : getMessage(mood, locale);
+  const message = getMessage(mood, locale);
 
   return {
     mood,

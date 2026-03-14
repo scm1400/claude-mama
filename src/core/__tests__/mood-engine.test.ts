@@ -6,29 +6,29 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('computeMood — threshold boundaries', () => {
+describe('computeMood — single-axis fallback (fiveHourUtilization = null)', () => {
   it('0% → angry', () => {
     const state = computeMood({ weeklyUtilization: 0, fiveHourUtilization: null, error: null });
     expect(state.mood).toBe('angry');
   });
 
-  it('14% → angry', () => {
-    const state = computeMood({ weeklyUtilization: 14, fiveHourUtilization: null, error: null });
+  it('24% → angry', () => {
+    const state = computeMood({ weeklyUtilization: 24, fiveHourUtilization: null, error: null });
     expect(state.mood).toBe('angry');
   });
 
-  it('15% → worried', () => {
-    const state = computeMood({ weeklyUtilization: 15, fiveHourUtilization: null, error: null });
+  it('25% → worried', () => {
+    const state = computeMood({ weeklyUtilization: 25, fiveHourUtilization: null, error: null });
     expect(state.mood).toBe('worried');
   });
 
-  it('49% → worried', () => {
-    const state = computeMood({ weeklyUtilization: 49, fiveHourUtilization: null, error: null });
+  it('59% → worried', () => {
+    const state = computeMood({ weeklyUtilization: 59, fiveHourUtilization: null, error: null });
     expect(state.mood).toBe('worried');
   });
 
-  it('50% → happy', () => {
-    const state = computeMood({ weeklyUtilization: 50, fiveHourUtilization: null, error: null });
+  it('60% → happy', () => {
+    const state = computeMood({ weeklyUtilization: 60, fiveHourUtilization: null, error: null });
     expect(state.mood).toBe('happy');
   });
 
@@ -48,25 +48,106 @@ describe('computeMood — threshold boundaries', () => {
   });
 });
 
-describe('computeMood — 5-hour override', () => {
-  it('fiveHourUtilization > 90 emits fiveHourWarning message regardless of weekly mood', () => {
-    // weekly = 20% → would normally be "worried"
-    const state = computeMood({ weeklyUtilization: 20, fiveHourUtilization: 91, error: null });
-    expect(state.mood).toBe('worried'); // mood stays as computed from weekly
-    expect(state.fiveHourPercent).toBe(91);
-    // message should be a fiveHourWarning message
-    expect(MESSAGE_POOLS.ko.fiveHourWarning).toContain(state.message);
+describe('computeMood — 2-axis mood matrix', () => {
+  // weekly < 25%
+  it('weekly=10, 5hr=20 (low/low) → angry', () => {
+    const state = computeMood({ weeklyUtilization: 10, fiveHourUtilization: 20, error: null });
+    expect(state.mood).toBe('angry');
   });
 
-  it('fiveHourUtilization = 90 does NOT trigger override', () => {
-    const state = computeMood({ weeklyUtilization: 60, fiveHourUtilization: 90, error: null });
+  it('weekly=10, 5hr=50 (low/mid) → angry', () => {
+    const state = computeMood({ weeklyUtilization: 10, fiveHourUtilization: 50, error: null });
+    expect(state.mood).toBe('angry');
+  });
+
+  it('weekly=10, 5hr=80 (low/high) → worried', () => {
+    const state = computeMood({ weeklyUtilization: 10, fiveHourUtilization: 80, error: null });
+    expect(state.mood).toBe('worried');
+  });
+
+  // weekly 25-60%
+  it('weekly=40, 5hr=10 (mid-low/low) → worried', () => {
+    const state = computeMood({ weeklyUtilization: 40, fiveHourUtilization: 10, error: null });
+    expect(state.mood).toBe('worried');
+  });
+
+  it('weekly=40, 5hr=50 (mid-low/mid) → happy', () => {
+    const state = computeMood({ weeklyUtilization: 40, fiveHourUtilization: 50, error: null });
     expect(state.mood).toBe('happy');
+  });
+
+  it('weekly=40, 5hr=80 (mid-low/high) → happy', () => {
+    const state = computeMood({ weeklyUtilization: 40, fiveHourUtilization: 80, error: null });
+    expect(state.mood).toBe('happy');
+  });
+
+  // weekly 60-85%
+  it('weekly=70, 5hr=10 (mid-high/low) → worried', () => {
+    const state = computeMood({ weeklyUtilization: 70, fiveHourUtilization: 10, error: null });
+    expect(state.mood).toBe('worried');
+  });
+
+  it('weekly=70, 5hr=50 (mid-high/mid) → happy', () => {
+    const state = computeMood({ weeklyUtilization: 70, fiveHourUtilization: 50, error: null });
+    expect(state.mood).toBe('happy');
+  });
+
+  it('weekly=70, 5hr=80 (mid-high/high) → proud', () => {
+    const state = computeMood({ weeklyUtilization: 70, fiveHourUtilization: 80, error: null });
+    expect(state.mood).toBe('proud');
+  });
+
+  // weekly > 85%
+  it('weekly=90, 5hr=10 (high/low) → happy', () => {
+    const state = computeMood({ weeklyUtilization: 90, fiveHourUtilization: 10, error: null });
+    expect(state.mood).toBe('happy');
+  });
+
+  it('weekly=90, 5hr=50 (high/mid) → proud', () => {
+    const state = computeMood({ weeklyUtilization: 90, fiveHourUtilization: 50, error: null });
+    expect(state.mood).toBe('proud');
+  });
+
+  it('weekly=90, 5hr=80 (high/high) → proud', () => {
+    const state = computeMood({ weeklyUtilization: 90, fiveHourUtilization: 80, error: null });
+    expect(state.mood).toBe('proud');
+  });
+
+  // Boundary tests for 5-hour ranges
+  it('5hr=29 (boundary low) → treated as low', () => {
+    const state = computeMood({ weeklyUtilization: 40, fiveHourUtilization: 29, error: null });
+    expect(state.mood).toBe('worried');
+  });
+
+  it('5hr=30 (boundary mid) → treated as mid', () => {
+    const state = computeMood({ weeklyUtilization: 40, fiveHourUtilization: 30, error: null });
+    expect(state.mood).toBe('happy');
+  });
+
+  it('5hr=70 (boundary mid upper) → treated as mid', () => {
+    const state = computeMood({ weeklyUtilization: 40, fiveHourUtilization: 70, error: null });
+    expect(state.mood).toBe('happy');
+  });
+
+  it('5hr=71 (boundary high) → treated as high', () => {
+    const state = computeMood({ weeklyUtilization: 40, fiveHourUtilization: 71, error: null });
+    expect(state.mood).toBe('happy');
+  });
+});
+
+describe('computeMood — no fiveHourWarning override', () => {
+  it('fiveHourUtilization > 90 does NOT produce fiveHourWarning message', () => {
+    const state = computeMood({ weeklyUtilization: 20, fiveHourUtilization: 95, error: null });
+    // 5hr=95 is high bucket → weekly<25 + 5hr high → worried
+    expect(state.mood).toBe('worried');
+    // Message should be mood message, NOT fiveHourWarning
     expect(MESSAGE_POOLS.ko.fiveHourWarning).not.toContain(state.message);
+    expect(MESSAGE_POOLS.ko.worried).toContain(state.message);
   });
 
-  it('fiveHourUtilization = null does not trigger override', () => {
-    const state = computeMood({ weeklyUtilization: 80, fiveHourUtilization: null, error: null });
-    expect(state.mood).toBe('happy');
+  it('fiveHourPercent is still reported in state', () => {
+    const state = computeMood({ weeklyUtilization: 60, fiveHourUtilization: 95, error: null });
+    expect(state.fiveHourPercent).toBe(95);
   });
 });
 
@@ -110,31 +191,22 @@ describe('computeMood — no credentials → sleeping', () => {
 });
 
 describe('computeMood — message stability', () => {
-  it('same input in the same 5-min window produces the same message', () => {
+  it('same input in the same 2-min window produces the same message', () => {
     const input = { weeklyUtilization: 60, fiveHourUtilization: null, error: null };
     const state1 = computeMood(input);
     const state2 = computeMood(input);
     expect(state1.message).toBe(state2.message);
   });
 
-  it('messages may differ across 5-min windows', () => {
-    // Simulate two different windows by mocking Date.now
+  it('messages may differ across 2-min windows', () => {
     const input = { weeklyUtilization: 60, fiveHourUtilization: null, error: null };
-
-    // Window 1: use a time that maps to index 0
     const baseWindow = Math.floor(Date.now() / 120_000);
     vi.spyOn(Date, 'now').mockReturnValue(baseWindow * 120_000);
     const state1 = computeMood(input);
-
-    // Window 2: advance by 5 pool-lengths windows to guarantee different index is possible
-    // We just verify that the mechanism can produce different messages by checking the pool
     vi.spyOn(Date, 'now').mockReturnValue((baseWindow + 1) * 120_000);
     const state2 = computeMood(input);
-
-    // Both should be valid happy messages
     expect(MESSAGE_POOLS.ko.happy).toContain(state1.message);
     expect(MESSAGE_POOLS.ko.happy).toContain(state2.message);
-    // They may differ — that's the goal, but not guaranteed since pool wraps
   });
 });
 

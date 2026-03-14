@@ -56,10 +56,8 @@ function broadcastState(): void {
   };
 
   // Override message with contextual variant if applicable
-  // Do NOT override fiveHourWarning messages (safety-critical) or rateLimited messages
   const isMamaMood = ['angry', 'worried', 'happy', 'proud'].includes(state.mood);
-  const hasFiveHourWarning = state.fiveHourPercent !== null && state.fiveHourPercent > 90;
-  if (isMamaMood && !state.rateLimited && !hasFiveHourWarning) {
+  if (isMamaMood && !state.rateLimited) {
     const locale = getStore().get('locale', DEFAULT_LOCALE) as Locale;
     const contextualMsg = getContextualMessage(
       state.mood as MamaMood,
