@@ -42,11 +42,15 @@ Claude Mama is a tiny desktop widget that monitors your [Claude Code](https://do
 - **Real-time usage tracking** — Pulls 7-day and 5-hour utilization from the Anthropic OAuth API, with smart JSONL session fallback when rate limited
 - **Pixel art character** — A pixel-art mama with curler hair and 6 mood expressions (angry, worried, happy, proud, confused, sleeping)
 - **Guilt-powered messages** — Randomized mom-style messages that rotate every 2 minutes
+- **Contextual messages** — Situation-aware messages for weekends, unused streaks, usage spikes, and reset warnings (200+ new localized messages across 4 languages)
 - **5-hour burnout warning** — "Take a break~ You're almost at the limit!" (she cares, in her own way)
+- **Achievement Badges** — Unlock 9 badges across Bronze, Silver, and Gold tiers for streaks, milestones, and achievements
 - **Share Report Card** — Save a shareable PNG card with your current mood, usage stats, and reset countdown
 - **Quote Collection (도감)** — Collect 86 unique mama quotes across 4 rarity tiers (Common, Rare, Legendary, Secret)
+- **Custom Character Skins** — Upload your own character images with single, per-mood, or sprite sheet modes
+- **Always on Top** — Toggle in Settings or tray menu (default ON) to keep mama visible above other windows
 - **System tray** — Lives quietly in your taskbar, judging you silently
-- **Settings panel** — Position, auto-start, language selection, and collection viewer
+- **Settings panel** — Position, auto-start, language selection, collection viewer, and skin customization
 - **4 languages** — 한국어, English, 日本語, 中文
 - **Auto-start** — Boots with your OS so you can never escape mom's watchful eye
 - **Auto-update** — Mom keeps herself up to date via GitHub Releases
@@ -71,6 +75,32 @@ Mama has 86 unique quotes spread across 4 rarity tiers:
 | 🔵 Rare | 5 | Hit specific usage milestones (0%, 50%, 100% of 5hr, etc.) |
 | 🟡 Legendary | 3 | Achieve streaks and lifetime milestones |
 | 🔴 Secret | 5 | Use the app on holidays or at 3 AM |
+
+### Achievement Badges
+
+Unlock badges for hitting milestones and maintaining streaks. View your collection in **Collection tab → Badges**.
+
+| Tier | Badge | How to Unlock |
+|------|-------|---------------|
+| 🥉 Bronze | First Steps | Make your first API call |
+| 🥉 Bronze | 3-Day Streak | Use Claude Code on 3 consecutive days |
+| 🥉 Bronze | 7 Days with Mom | Use the app for 7 consecutive days |
+| 🥈 Silver | Halfway There | Hit 50% of your weekly quota |
+| 🥈 Silver | 7-Day Streak | Maintain a 7-day usage streak |
+| 🥈 Silver | Mom's Pride | Get 10 "proud" expressions (85%+ usage) |
+| 🥇 Gold | Full Power | Reach 100% of your weekly quota |
+| 🥇 Gold | 30-Day Streak | Maintain a 30-day usage streak |
+| 🥇 Gold | Survivor | Get 10 "angry" expressions AND keep using the app |
+
+### Custom Character Skins
+
+Give mama a new look with custom character images:
+
+- **Single Image Mode** — One image displayed for all moods
+- **Per-Mood Mode** — 6 images (one for each mood expression: angry, worried, happy, proud, confused, sleeping)
+- **Sprite Sheet Mode** — Advanced mode with one image and grid configuration for frame positioning
+
+Upload your custom skins in **Settings → Skins** and switch between them anytime. Mom might judge your art choices, but she'll wear them anyway.
 
 ## Installation
 
