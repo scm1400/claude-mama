@@ -3,7 +3,11 @@
   "version": "2.0.0",
   "description": "Claude Pet - virtual pet coding companion desktop widget",
   "main": "dist/main/main/main.js",
+  "bin": {
+    "claude-pet": "bin/claude-pet.js"
+  },
   "scripts": {
+    "prepare": "npm run build",
     "dev": "npm run build:main && concurrently -k -n VITE,ELECTRON -c cyan,yellow \"vite\" \"cross-env NODE_ENV=development electron dist/main/main/main.js\"",
     "build:renderer": "vite build",
     "build:main": "tsc -p tsconfig.main.json",
@@ -25,7 +29,6 @@
     "@vitejs/plugin-react": "^5.1.4",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
-    "electron": "^40.8.0",
     "electron-builder": "^26.8.1",
     "png-to-ico": "^3.0.1",
     "sharp": "^0.34.5",
@@ -36,6 +39,7 @@
   },
   "dependencies": {
     "auto-launch": "^5.0.6",
+    "electron": "^40.8.0",
     "electron-store": "8.2.0",
     "electron-updater": "^6.8.3",
     "react": "^19.2.4",
