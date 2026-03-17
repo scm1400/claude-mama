@@ -109,22 +109,53 @@ Upload your custom skins in **Settings → Skins** and switch between them anyti
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview) must be installed and logged in (OAuth)
 - That's it. Mom doesn't ask for much.
 
-### Download
+### Quick Install (One-liner)
 
-Grab the latest installer from [**Releases**](https://github.com/scm1400/claude-mama/releases):
+**npm** (all platforms, requires Node.js):
+```bash
+npm install -g claude-pet
+claude-pet
+```
+
+**macOS / Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/scm1400/claude-pet/main/scripts/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/scm1400/claude-pet/main/scripts/install.ps1 | iex
+```
+
+### Download Installer
+
+Or grab the latest installer from [**Releases**](https://github.com/scm1400/claude-mama/releases):
 
 | Platform | File | Arch |
 |----------|------|------|
-| Windows | `Claude Mama Setup x.x.x.exe` | x64 |
-| macOS | `Claude Mama-x.x.x.dmg` | Universal (Intel + Apple Silicon) |
-| Linux | `Claude Mama-x.x.x.AppImage` | x64 |
-| Linux | `claude-mama_x.x.x_amd64.deb` | x64 |
+| Windows | `Claude Pet Setup x.x.x.exe` | x64 |
+| macOS | `Claude Pet-x.x.x.dmg` | Universal (Intel + Apple Silicon) |
+| Linux | `Claude Pet-x.x.x.AppImage` | x64 |
+| Linux | `claude-pet_x.x.x_amd64.deb` | x64 |
 
-> **⚠️ Not code-signed:** Claude Mama is not code-signed yet, so your OS will show a security warning on first install.
-> - **Windows:** SmartScreen will say "Windows protected your PC." Click **More info** → **Run anyway**.
-> - **macOS:** You'll see "cannot be opened because the developer cannot be verified." Go to **System Settings** → **Privacy & Security** → **Open Anyway**.
-> - **Linux (AppImage):** `chmod +x Claude\ Mama-*.AppImage && ./Claude\ Mama-*.AppImage`
-> - **Linux (deb):** `sudo dpkg -i claude-mama_*.deb`
+> **⚠️ Not code-signed:** The app is not code-signed yet, so your OS will show a security warning on first install.
+> - **Windows:** SmartScreen → **More info** → **Run anyway**
+> - **macOS:** **System Settings** → **Privacy & Security** → **Open Anyway**
+> - **Linux (AppImage):** `chmod +x Claude\ Pet-*.AppImage && ./Claude\ Pet-*.AppImage`
+> - **Linux (deb):** `sudo dpkg -i claude-pet_*.deb`
+
+### Claude Code Integration
+
+Claude Pet includes slash commands that work inside Claude Code:
+
+| Command | Effect |
+|---------|--------|
+| `/feed` | Feed your pet (hunger -30%) |
+| `/play` | Play with your pet (happiness +25%) |
+| `/pet` | Pet your pet (hunger -10%, happiness +10%, energy +10%) |
+| `/name <name>` | Give your pet a name |
+
+Each command shows a live status line with level, growth stage, and stat changes.
 
 ### First Launch
 
