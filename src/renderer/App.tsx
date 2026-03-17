@@ -138,9 +138,14 @@ function MainView() {
   const dataSource = petState?.dataSource ?? 'none';
   const rateLimited = petState?.rateLimited ?? false;
 
-  // Show speech bubble on message rotation (independent of bar state)
+  // Show speech bubble on message rotation or event change
+  const lastEventRef = useRef<string | null>(null);
   useEffect(() => {
-    if (message !== prevMessageRef.current) {
+    const eventKey = petState?.lastEvent ? `${petState.lastEvent.type}:${petState.lastEvent.timestamp}` : null;
+    const eventChanged = eventKey !== null && eventKey !== lastEventRef.current;
+    if (eventChanged) lastEventRef.current = eventKey;
+
+    if (message !== prevMessageRef.current || eventChanged) {
       prevMessageRef.current = message;
       if (petState) {
         const dir = window.screenY < 120 ? 'down' : 'up';

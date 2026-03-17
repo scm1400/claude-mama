@@ -70,7 +70,14 @@ function getPreviousPetState() {
 }
 
 function broadcastState(): void {
-  if (!lastUsageInput) return;
+  // Provide fallback usage input so events can trigger before first API poll
+  if (!lastUsageInput) {
+    lastUsageInput = {
+      weeklyUtilization: null,
+      fiveHourUtilization: null,
+      error: null,
+    };
+  }
   // Always read latest locale from store
   const locale = getStore().get('locale', DEFAULT_LOCALE) as import('../shared/types').Locale;
   const petName = readPetName();
@@ -103,9 +110,10 @@ function broadcastState(): void {
     resetsAt: state.resetsAt,
   };
 
-  // Override message with contextual variant if applicable
+  // Override message with contextual variant if applicable (skip when event is active)
+  const hasRecentEvent = lastPetEvent && (Date.now() - new Date(lastPetEvent.timestamp).getTime() < 5 * 60 * 1000);
   const isPetMood = ['happy', 'playful', 'sleepy', 'worried', 'bored'].includes(state.mood);
-  if (isPetMood && !state.rateLimited) {
+  if (isPetMood && !state.rateLimited && !hasRecentEvent) {
     const locale = getStore().get('locale', DEFAULT_LOCALE) as Locale;
     const contextualMsg = getContextualMessage(
       state.mood as PetMood,

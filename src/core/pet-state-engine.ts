@@ -92,13 +92,26 @@ export function computePetState(
     petName: petName ?? null,
   };
 
+  // Helper: get event-aware message (overrides mood message if recent event)
+  function getEventMessage(fallbackKey: Parameters<typeof getMessage>[0]): string {
+    const recentEvent = lastEvent && isEventRecent(lastEvent);
+    if (recentEvent && lastEvent) {
+      switch (lastEvent.type) {
+        case 'feed': return getMessage('eating' as any, locale);
+        case 'play': return getMessage('playing' as any, locale);
+        case 'pet': return getMessage('petted' as any, locale);
+      }
+    }
+    return getMessage(fallbackKey, locale);
+  }
+
   // No credentials → sleeping
   if (error === 'NO_CREDENTIALS') {
     return {
       mood: 'sleeping' as PetErrorExpression,
       utilizationPercent: 0,
       fiveHourPercent: null,
-      message: getMessage('sleeping', locale),
+      message: getEventMessage('sleeping'),
       resetsAt: null,
       fiveHourResetsAt: null,
       dataSource: 'none',
@@ -122,7 +135,7 @@ export function computePetState(
         mood: rlMood,
         utilizationPercent: weeklyUtilization,
         fiveHourPercent: fiveHourUtilization,
-        message: getMessage('rateLimited', locale),
+        message: getEventMessage('rateLimited'),
         resetsAt,
         fiveHourResetsAt,
         dataSource,
@@ -136,7 +149,7 @@ export function computePetState(
       mood: 'confused' as PetErrorExpression,
       utilizationPercent: 0,
       fiveHourPercent: fiveHourUtilization,
-      message: getMessage('rateLimited', locale),
+      message: getEventMessage('rateLimited'),
       resetsAt,
       fiveHourResetsAt,
       dataSource,
@@ -153,7 +166,7 @@ export function computePetState(
       mood: 'confused' as PetErrorExpression,
       utilizationPercent: 0,
       fiveHourPercent: fiveHourUtilization,
-      message: getMessage('confused', locale),
+      message: getEventMessage('confused'),
       resetsAt,
       fiveHourResetsAt,
       dataSource,

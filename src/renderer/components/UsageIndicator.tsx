@@ -23,9 +23,11 @@ function clamp(v: number): number {
 function formatTimeLeft(resetsAt: string): string | null {
   const diff = new Date(resetsAt).getTime() - Date.now();
   if (diff <= 0) return null;
-  const h = Math.floor(diff / 3_600_000);
+  const d = Math.floor(diff / 86_400_000);
+  const h = Math.floor((diff % 86_400_000) / 3_600_000);
   const m = Math.floor((diff % 3_600_000) / 60_000);
-  if (h > 0) return `${h}h${m > 0 ? `${m}m` : ''}`;
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
 }
 
