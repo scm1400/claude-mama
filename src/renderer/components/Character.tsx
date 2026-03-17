@@ -1,6 +1,7 @@
 import React, { CSSProperties, forwardRef, useEffect, useState } from 'react';
 import { PetMood, PetErrorExpression, SkinConfig } from '../../shared/types';
 import petPng from '../assets/claude-mama.png';
+import catPng from '../assets/cat.png';
 import { toFileUrl } from '../../shared/utils';
 
 type Expression = PetMood | PetErrorExpression;
@@ -18,6 +19,14 @@ interface CharacterProps {
 const IMG_W = 60;
 const IMG_H = 60;
 const HIT_AREA = 80;
+
+// Default cat sprite: 160x32, 5 frames of 32x32, play frames 0-3
+const CAT_FRAME_SIZE = 32;
+const CAT_TOTAL_FRAMES = 5;
+const CAT_PLAY_FRAMES = 4; // frames 0-3
+const CAT_DISPLAY_W = 64;  // 2x scale
+const CAT_DISPLAY_H = 64;
+const CAT_ANIM = { startFrame: 0, endFrame: 3, fps: 6 };
 
 const MOOD_ANIMATIONS: Record<Expression, string> = {
   happy: 'happyBounce 1.5s ease-in-out infinite',
@@ -211,8 +220,23 @@ export const Character = forwardRef<HTMLDivElement, CharacterProps>(
     // Determine image source based on skin config
     let imgSrc = petPng;
     let spriteBgStyle: CSSProperties | null = null;
+    let isDefaultCat = false;
 
-    if (skinConfig) {
+    if (!skinConfig || skinConfig.mode === 'default') {
+      // Default: 5-frame cat sprite strip (32x32 each), play frames 0-3
+      isDefaultCat = true;
+      const col = spriteFrame % CAT_PLAY_FRAMES;
+      spriteBgStyle = {
+        width: '100%',
+        height: '100%',
+        backgroundImage: `url(${catPng})`,
+        backgroundSize: `${CAT_TOTAL_FRAMES * CAT_DISPLAY_W}px ${CAT_DISPLAY_H}px`,
+        backgroundPosition: `${-col * CAT_DISPLAY_W}px 0`,
+        backgroundRepeat: 'no-repeat',
+        imageRendering: 'pixelated' as const,
+      };
+      spriteAnim = CAT_ANIM;
+    } else {
       switch (skinConfig.mode) {
         case 'single':
           if (skinConfig.singleImagePath) imgSrc = toFileUrl(skinConfig.singleImagePath);
@@ -259,10 +283,11 @@ export const Character = forwardRef<HTMLDivElement, CharacterProps>(
       return () => clearInterval(interval);
     }, [spriteAnim?.startFrame, spriteAnim?.endFrame, spriteAnim?.fps]);
 
+    const hitAreaSize = isDefaultCat ? CAT_DISPLAY_W : HIT_AREA;
     const hitAreaStyle: CSSProperties = {
       position: 'relative',
-      width: HIT_AREA,
-      height: HIT_AREA,
+      width: hitAreaSize,
+      height: hitAreaSize,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -273,10 +298,13 @@ export const Character = forwardRef<HTMLDivElement, CharacterProps>(
     const growthGlow = growthStage === 'adult' ? '0 0 12px rgba(255, 215, 0, 0.4)' :
                        growthStage === 'teen' ? '0 0 6px rgba(100, 200, 255, 0.3)' : 'none';
 
+    const containerW = isDefaultCat ? CAT_DISPLAY_W : IMG_W;
+    const containerH = isDefaultCat ? CAT_DISPLAY_H : IMG_H;
+
     const containerStyle: CSSProperties = {
       position: 'relative',
-      width: IMG_W,
-      height: IMG_H,
+      width: containerW,
+      height: containerH,
       animation: MOOD_ANIMATIONS[expression],
       transform: `scale(${growthScale})`,
       filter: growthStage === 'adult' ? 'brightness(1.1) saturate(1.1)' : undefined,
@@ -306,7 +334,7 @@ export const Character = forwardRef<HTMLDivElement, CharacterProps>(
         <div style={containerStyle}>
           {auraStyle && <div style={auraStyle as CSSProperties} />}
           {spriteBgStyle ? <div style={spriteBgStyle} /> : <img src={imgSrc} alt="Claude Pet" style={imgStyle} draggable={false} />}
-          {!spriteBgStyle && <MoodOverlay expression={expression} />}
+          <MoodOverlay expression={expression} />
         </div>
         {hasNewMessage && (
           <div style={{

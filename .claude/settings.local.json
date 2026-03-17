@@ -10,7 +10,34 @@
       "Bash(git commit:*)",
       "Bash(wc -l ./src/core/*.ts ./src/main/*.ts ./src/renderer/*.tsx)",
       "mcp__plugin_oh-my-claudecode_t__state_write",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(grep -E \"\\\\.ts$\")",
+      "Bash(mkdir -p ~/.claude-pet)",
+      "Bash(~/.claude-pet/name.txt)",
+      "Bash(~/.claude-pet/events.jsonl)",
+      "Bash(npm link:*)",
+      "Bash(tasklist)",
+      "Skill(update-config)",
+      "Bash(claude-pet)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(jq:*)",
+      "Bash(taskkill //F //IM electron.exe)",
+      "Bash(rm -f ~/.claude-pet/app.pid)",
+      "Bash(gh repo:*)",
+      "Bash(taskkill:*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "claude-pet",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

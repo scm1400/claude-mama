@@ -1,6 +1,6 @@
 {
   "name": "claude-pet",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "Claude Pet - virtual pet coding companion desktop widget",
   "main": "dist/main/main/main.js",
   "bin": {
