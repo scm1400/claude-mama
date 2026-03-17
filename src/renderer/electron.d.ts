@@ -3,7 +3,7 @@ declare module '*.png' {
   export default src;
 }
 
-import { MamaState, MamaSettings } from '../shared/types';
+import { MamaState, MamaSettings, SkinUploadResponse } from '../shared/types';
 
 declare global {
   interface Window {
@@ -22,7 +22,7 @@ declare global {
       showContextMenu(): void;
       getBadges(): Promise<unknown>;
       onBadgeUnlocked(callback: (badgeIds: string[]) => void): () => void;
-      uploadSkin(mood?: string): Promise<string | null>;
+      uploadSkin(mood?: string): Promise<SkinUploadResponse>;
       resetSkin(): Promise<unknown>;
       getSkinConfig(): Promise<unknown>;
       onSkinConfigUpdated(callback: (config: unknown) => void): () => void;

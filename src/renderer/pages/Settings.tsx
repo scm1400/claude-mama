@@ -2,8 +2,43 @@ import React, { useEffect, useState } from 'react';
 import { MamaSettings, MamaState, Locale, SkinConfig, SkinMode, MamaMood, MamaErrorExpression, DailyUtilRecord } from '../../shared/types';
 import { t, LOCALE_LABELS, UIStringKey, DEFAULT_LOCALE } from '../../shared/i18n';
 import Collection from './Collection';
+import { toFileUrl } from '../../shared/utils';
 
 const LOCALES: Locale[] = ['ko', 'en', 'ja', 'zh'];
+const ALL_EXPRESSIONS: (MamaMood | MamaErrorExpression)[] = ['angry', 'worried', 'happy', 'proud', 'confused', 'sleeping'];
+
+type MoodFrame = Record<MamaMood | MamaErrorExpression, { startFrame: number; endFrame: number; fps: number }>;
+
+function autoMapMoods(cols: number, rows: number): MoodFrame {
+  const totalFrames = cols * rows;
+  const map = {} as MoodFrame;
+  ALL_EXPRESSIONS.forEach((expr, idx) => {
+    const frame = idx < totalFrames ? idx : 0;
+    map[expr] = { startFrame: frame, endFrame: frame, fps: 8 };
+  });
+  return map;
+}
+
+function clampMoodMap(existing: MoodFrame | undefined, cols: number, rows: number): MoodFrame {
+  if (!existing) return autoMapMoods(cols, rows);
+  const maxFrame = cols * rows - 1;
+  const clamped = { ...existing };
+  for (const expr of ALL_EXPRESSIONS) {
+    const f = clamped[expr];
+    if (f) {
+      clamped[expr] = {
+        startFrame: Math.min(f.startFrame, maxFrame),
+        endFrame: Math.min(f.endFrame, maxFrame),
+        fps: f.fps || 8,
+      };
+    }
+  }
+  return clamped;
+}
+
+function frameToGrid(frame: number, cols: number): { col: number; row: number } {
+  return { col: frame % cols, row: Math.floor(frame / cols) };
+}
 
 export default function Settings() {
   const [settings, setSettings] = useState<MamaSettings>({
@@ -26,29 +61,53 @@ export default function Settings() {
   const i = (key: UIStringKey) => t(locale, key);
 
   const EXPRESSIONS: (MamaMood | MamaErrorExpression)[] = ['angry', 'worried', 'happy', 'proud', 'confused', 'sleeping'];
+  const [uploadError, setUploadError] = useState<UIStringKey | null>(null);
 
   // Auto-save skin config whenever it changes (no separate save button needed)
-  const saveSkinConfig = async (config: SkinConfig) => {
-    setSkinConfig(config);
-    await window.electronAPI.setSettings({ skin: config } as Partial<MamaSettings>);
+  const saveSkinConfig = async (config: SkinConfig | ((prev: SkinConfig) => SkinConfig)) => {
+    const resolved = typeof config === 'function' ? config(skinConfig) : config;
+    setSkinConfig(resolved);
+    await window.electronAPI.setSettings({ skin: resolved } as Partial<MamaSettings>);
   };
 
   const handleSkinModeChange = async (mode: SkinMode) => {
-    const newConfig = { ...skinConfig, mode };
+    const newConfig: SkinConfig = { mode };
+    if (mode === 'single') newConfig.singleImagePath = skinConfig.singleImagePath;
+    if (mode === 'per-mood') newConfig.moodImages = skinConfig.moodImages;
+    if (mode === 'spritesheet') newConfig.spritesheet = skinConfig.spritesheet;
     await saveSkinConfig(newConfig);
   };
 
   const handleSkinUpload = async (mood?: string) => {
-    const filePath = await window.electronAPI.uploadSkin(mood);
-    if (!filePath) return;
+    const result = await window.electronAPI.uploadSkin(mood);
+    if (!result) return;
 
+    if (!result.ok) {
+      const errorKey = (result.error === 'file_too_large' ? 'skin_file_too_large' : 'skin_invalid_format') as UIStringKey;
+      setUploadError(errorKey);
+      setTimeout(() => setUploadError(null), 3000);
+      return;
+    }
+
+    const { path: filePath, width, height } = result;
     let newConfig = { ...skinConfig };
     if (skinConfig.mode === 'single') {
       newConfig.singleImagePath = filePath;
     } else if (skinConfig.mode === 'per-mood' && mood) {
       newConfig.moodImages = { ...newConfig.moodImages, [mood]: filePath };
     } else if (skinConfig.mode === 'spritesheet') {
-      newConfig.spritesheet = { ...newConfig.spritesheet!, imagePath: filePath };
+      const cols = skinConfig.spritesheet?.columns ?? 1;
+      const rows = skinConfig.spritesheet?.rows ?? 1;
+      newConfig.spritesheet = {
+        imagePath: filePath,
+        columns: cols,
+        rows: rows,
+        imageWidth: width,
+        imageHeight: height,
+        frameWidth: Math.max(1, Math.floor(width / cols)),
+        frameHeight: Math.max(1, Math.floor(height / rows)),
+        moodMap: skinConfig.spritesheet?.moodMap ?? autoMapMoods(cols, rows),
+      };
     }
     await saveSkinConfig(newConfig);
   };
@@ -79,7 +138,9 @@ export default function Settings() {
   }, []);
 
   const handleSave = async () => {
-    await window.electronAPI.setSettings(settings);
+    // Exclude skin from general save — skin is auto-saved via saveSkinConfig
+    const { skin, ...generalSettings } = settings as MamaSettings & { skin?: unknown };
+    await window.electronAPI.setSettings(generalSettings);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -215,16 +276,25 @@ export default function Settings() {
               </button>
             )}
 
+            {/* Upload error message (shown for all modes) */}
+            {uploadError && (
+              <div style={{ fontSize: 11, color: '#ef4444', background: '#fef2f2', padding: '6px 10px', borderRadius: 6, marginTop: 6, textAlign: 'center' }}>
+                {i(uploadError)}
+              </div>
+            )}
+
             {/* Single image upload */}
             {skinConfig.mode === 'single' && (
               <div style={{ marginTop: 10 }}>
                 <div
+                  role="button" tabIndex={0} aria-label={i('skin_upload')}
                   style={s.dropZone}
                   onClick={() => handleSkinUpload()}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSkinUpload(); } }}
                 >
                   {skinConfig.singleImagePath ? (
                     <img
-                      src={`file://${skinConfig.singleImagePath}`}
+                      src={toFileUrl(skinConfig.singleImagePath!)}
                       alt={i('skin_preview')}
                       style={{ width: 60, height: 60, objectFit: 'contain', imageRendering: 'pixelated' }}
                     />
@@ -252,7 +322,7 @@ export default function Settings() {
                     >
                       {imgPath ? (
                         <img
-                          src={`file://${imgPath}`}
+                          src={toFileUrl(imgPath!)}
                           alt={expr}
                           style={{ width: 50, height: 50, objectFit: 'contain', imageRendering: 'pixelated' }}
                         />
@@ -271,16 +341,52 @@ export default function Settings() {
             {/* Spritesheet config */}
             {skinConfig.mode === 'spritesheet' && (
               <div style={{ marginTop: 10 }}>
+                {/* Upload zone with grid overlay */}
                 <div
+                  role="button" tabIndex={0} aria-label={i('skin_upload')}
                   style={s.dropZone}
                   onClick={() => handleSkinUpload()}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSkinUpload(); } }}
                 >
                   {skinConfig.spritesheet?.imagePath ? (
-                    <img
-                      src={`file://${skinConfig.spritesheet.imagePath}`}
-                      alt={i('skin_preview')}
-                      style={{ maxWidth: '100%', maxHeight: 100, objectFit: 'contain', imageRendering: 'pixelated' }}
-                    />
+                    <div style={{ position: 'relative', width: '100%' }}>
+                      <img
+                        src={toFileUrl(skinConfig.spritesheet.imagePath)}
+                        alt={i('skin_preview')}
+                        style={{ width: '100%', maxHeight: 120, objectFit: 'contain', imageRendering: 'pixelated', display: 'block' }}
+                      />
+                      {/* Grid overlay */}
+                      <div style={{
+                        position: 'absolute', inset: 0,
+                        display: 'grid',
+                        gridTemplateColumns: `repeat(${skinConfig.spritesheet?.columns ?? 1}, 1fr)`,
+                        gridTemplateRows: `repeat(${skinConfig.spritesheet?.rows ?? 1}, 1fr)`,
+                        pointerEvents: 'none',
+                      }}>
+                        {Array.from({ length: (skinConfig.spritesheet?.columns ?? 1) * (skinConfig.spritesheet?.rows ?? 1) }, (_, idx) => {
+                          const cols = skinConfig.spritesheet?.columns ?? 1;
+                          const c = idx % cols;
+                          const r = Math.floor(idx / cols);
+                          const frameIdx = r * cols + c;
+                          const mapped = EXPRESSIONS.find((e) => {
+                            const f = skinConfig.spritesheet?.moodMap?.[e];
+                            return f && frameIdx >= f.startFrame && frameIdx <= f.endFrame;
+                          });
+                          return (
+                            <div key={idx} style={{
+                              border: '1px solid rgba(255,255,255,0.4)',
+                              background: mapped ? 'rgba(236,72,153,0.25)' : 'transparent',
+                              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 8, color: '#fff', fontWeight: 600,
+                              textShadow: '0 1px 2px rgba(0,0,0,0.9)',
+                            }}>
+                              <span style={{ fontSize: 7, opacity: 0.7 }}>{frameIdx}</span>
+                              {mapped ? <span>{i(`mood_${mapped}` as UIStringKey)}</span> : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   ) : (
                     <div style={s.dropZoneEmpty}>
                       <span style={{ fontSize: 20 }}>+</span>
@@ -288,8 +394,11 @@ export default function Settings() {
                     </div>
                   )}
                 </div>
+
+
                 {skinConfig.spritesheet?.imagePath && (
                   <>
+                    {/* Columns & Rows */}
                     <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                       <label style={{ flex: 1, fontSize: 11, color: '#6b7280' }}>
                         {i('skin_columns')}
@@ -297,8 +406,13 @@ export default function Settings() {
                           type="number" min={1} max={16}
                           value={skinConfig.spritesheet?.columns ?? 1}
                           onChange={(e) => {
-                            const cols = parseInt(e.target.value) || 1;
-                            saveSkinConfig({ ...skinConfig, spritesheet: { ...skinConfig.spritesheet!, columns: cols } });
+                            const cols = Math.max(1, Math.min(16, parseInt(e.target.value) || 1));
+                            const ss = skinConfig.spritesheet!;
+                            const fw = ss.imageWidth ? Math.floor(ss.imageWidth / cols) : ss.frameWidth;
+                            saveSkinConfig({
+                              ...skinConfig,
+                              spritesheet: { ...ss, columns: cols, frameWidth: Math.max(1, fw), moodMap: clampMoodMap(ss.moodMap, cols, ss.rows) },
+                            });
                           }}
                           style={s.numInput}
                         />
@@ -309,43 +423,87 @@ export default function Settings() {
                           type="number" min={1} max={16}
                           value={skinConfig.spritesheet?.rows ?? 1}
                           onChange={(e) => {
-                            const rows = parseInt(e.target.value) || 1;
-                            saveSkinConfig({ ...skinConfig, spritesheet: { ...skinConfig.spritesheet!, rows } });
+                            const rows = Math.max(1, Math.min(16, parseInt(e.target.value) || 1));
+                            const ss = skinConfig.spritesheet!;
+                            const fh = ss.imageHeight ? Math.floor(ss.imageHeight / rows) : ss.frameHeight;
+                            saveSkinConfig({
+                              ...skinConfig,
+                              spritesheet: { ...ss, rows, frameHeight: Math.max(1, fh), moodMap: clampMoodMap(ss.moodMap, ss.columns, rows) },
+                            });
                           }}
                           style={s.numInput}
                         />
                       </label>
                     </div>
+
+                    {/* Mood → Frame animation mapping */}
                     <div style={{ marginTop: 8 }}>
-                      <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 4 }}>Mood → Frame (col, row)</div>
+                      <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 6 }}>{i('skin_mood_frame')}</div>
                       {EXPRESSIONS.map((expr) => {
-                        const frame = skinConfig.spritesheet?.moodMap?.[expr] ?? { col: 0, row: 0 };
+                        const ss = skinConfig.spritesheet!;
+                        const anim = ss.moodMap?.[expr] ?? { startFrame: 0, endFrame: 0, fps: 8 };
                         const mk = `mood_${expr}` as UIStringKey;
+                        const maxFrame = Math.max(0, (ss.columns ?? 1) * (ss.rows ?? 1) - 1);
+                        const startGrid = frameToGrid(anim.startFrame, ss.columns ?? 1);
                         return (
-                          <div key={expr} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                            <span style={{ width: 50, fontSize: 10, color: '#374151' }}>{i(mk)}</span>
-                            <input
-                              type="number" min={0} max={15} value={frame.col}
-                              style={{ ...s.numInput, width: 36, textAlign: 'center' }}
-                              onChange={(e) => {
-                                const col = parseInt(e.target.value) || 0;
-                                saveSkinConfig({
-                                  ...skinConfig,
-                                  spritesheet: { ...skinConfig.spritesheet!, moodMap: { ...skinConfig.spritesheet!.moodMap, [expr]: { ...frame, col } } },
-                                });
-                              }}
-                            />
-                            <input
-                              type="number" min={0} max={15} value={frame.row}
-                              style={{ ...s.numInput, width: 36, textAlign: 'center' }}
-                              onChange={(e) => {
-                                const row = parseInt(e.target.value) || 0;
-                                saveSkinConfig({
-                                  ...skinConfig,
-                                  spritesheet: { ...skinConfig.spritesheet!, moodMap: { ...skinConfig.spritesheet!.moodMap, [expr]: { ...frame, row } } },
-                                });
-                              }}
-                            />
+                          <div key={expr} style={{ marginBottom: 6, padding: '4px 6px', background: '#f9fafb', borderRadius: 6, border: '1px solid #f3f4f6' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              {/* Frame thumbnail (shows first frame) */}
+                              <div style={{
+                                width: 32, height: 32, flexShrink: 0,
+                                backgroundImage: `url(${toFileUrl(ss.imagePath)})`,
+                                backgroundSize: `${(ss.columns ?? 1) * 32}px ${(ss.rows ?? 1) * 32}px`,
+                                backgroundPosition: `${-startGrid.col * 32}px ${-startGrid.row * 32}px`,
+                                backgroundRepeat: 'no-repeat',
+                                imageRendering: 'pixelated',
+                                border: '1px solid #e5e7eb', borderRadius: 3,
+                              }} />
+                              <span style={{ flex: 1, fontSize: 10, color: '#374151', fontWeight: 600 }}>{i(mk)}</span>
+                              {anim.startFrame !== anim.endFrame && (
+                                <span style={{ fontSize: 9, color: '#ec4899', fontWeight: 600 }}>
+                                  {anim.endFrame - anim.startFrame + 1}f
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                              <span style={{ fontSize: 9, color: '#9ca3af', width: 28 }}>{i('skin_frame_start')}</span>
+                              <input
+                                type="number" min={0} max={maxFrame} value={anim.startFrame}
+                                style={{ ...s.numInput, width: 36, textAlign: 'center', fontSize: 11 }}
+                                onChange={(e) => {
+                                  const v = Math.max(0, Math.min(maxFrame, parseInt(e.target.value) || 0));
+                                  saveSkinConfig({
+                                    ...skinConfig,
+                                    spritesheet: { ...ss, moodMap: { ...ss.moodMap, [expr]: { ...anim, startFrame: v, endFrame: Math.max(v, anim.endFrame) } } },
+                                  });
+                                }}
+                              />
+                              <span style={{ fontSize: 9, color: '#9ca3af' }}>~</span>
+                              <span style={{ fontSize: 9, color: '#9ca3af', width: 22 }}>{i('skin_frame_end')}</span>
+                              <input
+                                type="number" min={0} max={maxFrame} value={anim.endFrame}
+                                style={{ ...s.numInput, width: 36, textAlign: 'center', fontSize: 11 }}
+                                onChange={(e) => {
+                                  const v = Math.max(anim.startFrame, Math.min(maxFrame, parseInt(e.target.value) || 0));
+                                  saveSkinConfig({
+                                    ...skinConfig,
+                                    spritesheet: { ...ss, moodMap: { ...ss.moodMap, [expr]: { ...anim, endFrame: v } } },
+                                  });
+                                }}
+                              />
+                              <span style={{ fontSize: 9, color: '#9ca3af', marginLeft: 2 }}>fps</span>
+                              <input
+                                type="number" min={1} max={60} value={anim.fps}
+                                style={{ ...s.numInput, width: 38, textAlign: 'center', fontSize: 11 }}
+                                onChange={(e) => {
+                                  const v = Math.max(1, Math.min(60, parseInt(e.target.value) || 8));
+                                  saveSkinConfig({
+                                    ...skinConfig,
+                                    spritesheet: { ...ss, moodMap: { ...ss.moodMap, [expr]: { ...anim, fps: v } } },
+                                  });
+                                }}
+                              />
+                            </div>
                           </div>
                         );
                       })}

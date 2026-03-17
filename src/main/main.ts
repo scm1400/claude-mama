@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen, Menu, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, screen, Menu, dialog, protocol, net } from 'electron';
 import path from 'path';
 import { registerIpcHandlers, getStore, setOnSettingsChanged } from './ipc-handlers';
 import { showSettingsWindow } from './settings-window';
@@ -195,7 +195,24 @@ function createWindow(): BrowserWindow {
   return win;
 }
 
+// Register custom protocol for serving skin images securely
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'skin', privileges: { standard: true, secure: true, supportFetchAPI: true } },
+]);
+
 app.whenReady().then(async () => {
+  // Handle skin:// protocol to serve local skin image files from skins directory only
+  const skinsDir = path.join(app.getPath('userData'), 'skins');
+  protocol.handle('skin', (request) => {
+    const url = new URL(request.url);
+    const fileName = decodeURIComponent(url.pathname.slice(1)); // remove leading /
+    const filePath = path.join(skinsDir, fileName);
+    // Security: ensure resolved path stays within skins directory
+    if (!filePath.startsWith(skinsDir)) {
+      return new Response('Forbidden', { status: 403 });
+    }
+    return net.fetch('file:///' + filePath.replace(/\\/g, '/'));
+  });
   // Initialize collection from store
   const storeInstance = getStore();
   const persisted = (storeInstance as any).get('unlockedQuotes', []) as any[];

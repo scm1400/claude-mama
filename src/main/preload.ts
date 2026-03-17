@@ -87,8 +87,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener(CHANNELS.BADGE_UNLOCKED, listener);
   },
 
-  uploadSkin: (mood?: string): Promise<string | null> => {
-    return ipcRenderer.invoke(CHANNELS.UPLOAD_SKIN, mood) as Promise<string | null>;
+  uploadSkin: (mood?: string): Promise<unknown> => {
+    return ipcRenderer.invoke(CHANNELS.UPLOAD_SKIN, mood);
   },
 
   resetSkin: (): Promise<unknown> => {

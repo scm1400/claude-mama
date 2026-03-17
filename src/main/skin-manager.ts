@@ -1,7 +1,7 @@
-import { app, dialog } from 'electron';
+import { app, dialog, nativeImage } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { SkinConfig } from '../shared/types';
+import { SkinConfig, SkinUploadResponse } from '../shared/types';
 import { getStore } from './ipc-handlers';
 
 const SKINS_DIR = path.join(app.getPath('userData'), 'skins');
@@ -25,7 +25,11 @@ function cleanupOldSkins(keepPaths: string[]): void {
   }
 }
 
-export async function uploadSkinImage(mood?: string): Promise<string | null> {
+const VALID_MOODS = ['angry', 'worried', 'happy', 'proud', 'confused', 'sleeping'];
+
+export async function uploadSkinImage(mood?: string): Promise<SkinUploadResponse> {
+  if (mood && !VALID_MOODS.includes(mood)) return { ok: false, error: 'invalid_format' };
+
   const result = await dialog.showOpenDialog({
     title: 'Select Character Image',
     filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif'] }],
@@ -37,10 +41,10 @@ export async function uploadSkinImage(mood?: string): Promise<string | null> {
   const srcPath = result.filePaths[0];
   const ext = path.extname(srcPath).toLowerCase();
 
-  if (!ALLOWED_EXTENSIONS.includes(ext)) return null;
+  if (!ALLOWED_EXTENSIONS.includes(ext)) return { ok: false, error: 'invalid_format' };
 
   const stat = fs.statSync(srcPath);
-  if (stat.size > MAX_FILE_SIZE) return null;
+  if (stat.size > MAX_FILE_SIZE) return { ok: false, error: 'file_too_large' };
 
   ensureSkinsDir();
   const fileName = mood
@@ -49,7 +53,15 @@ export async function uploadSkinImage(mood?: string): Promise<string | null> {
   const destPath = path.join(SKINS_DIR, fileName);
   fs.copyFileSync(srcPath, destPath);
 
-  return destPath;
+  const image = nativeImage.createFromPath(destPath);
+  const size = image.getSize();
+
+  if (size.width === 0 || size.height === 0) {
+    try { fs.unlinkSync(destPath); } catch { /* ignore */ }
+    return { ok: false, error: 'invalid_format' };
+  }
+
+  return { ok: true, path: destPath, width: size.width, height: size.height };
 }
 
 export function resetSkin(): void {
@@ -60,11 +72,39 @@ export function resetSkin(): void {
 
 export function getSkinConfig(): SkinConfig {
   const store = getStore();
-  return (store as any).get('skin', { mode: 'default' }) as SkinConfig;
+  const config = (store as any).get('skin', { mode: 'default' }) as SkinConfig;
+
+  // Normalize spritesheet config for backward compatibility
+  if (config.spritesheet) {
+    const ss = config.spritesheet;
+    if (!ss.imageWidth && ss.frameWidth && ss.columns) {
+      ss.imageWidth = ss.frameWidth * ss.columns;
+    }
+    if (!ss.imageHeight && ss.frameHeight && ss.rows) {
+      ss.imageHeight = ss.frameHeight * ss.rows;
+    }
+    // Migrate old { col, row } moodMap to { startFrame, endFrame, fps }
+    if (ss.moodMap) {
+      for (const [key, val] of Object.entries(ss.moodMap)) {
+        const v = val as any;
+        if (v && typeof v.col === 'number' && typeof v.startFrame !== 'number') {
+          (ss.moodMap as any)[key] = { startFrame: v.row * ss.columns + v.col, endFrame: v.row * ss.columns + v.col, fps: 8 };
+        }
+      }
+    }
+  }
+
+  return config;
 }
 
 export function saveSkinConfig(config: SkinConfig): void {
   const store = getStore();
+
+  // Validate spritesheet dimensions
+  if (config.spritesheet) {
+    config.spritesheet.columns = Math.max(1, Math.min(16, config.spritesheet.columns || 1));
+    config.spritesheet.rows = Math.max(1, Math.min(16, config.spritesheet.rows || 1));
+  }
 
   // Collect paths to keep
   const keepPaths: string[] = [];

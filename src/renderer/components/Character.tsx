@@ -1,6 +1,7 @@
-import React, { CSSProperties, forwardRef } from 'react';
+import React, { CSSProperties, forwardRef, useEffect, useState } from 'react';
 import { MamaMood, MamaErrorExpression, SkinConfig } from '../../shared/types';
 import mamaPng from '../assets/claude-mama.png';
+import { toFileUrl } from '../../shared/utils';
 
 type Expression = MamaMood | MamaErrorExpression;
 
@@ -197,37 +198,59 @@ function MoodOverlay({ expression }: { expression: Expression }) {
 
 export const Character = forwardRef<HTMLDivElement, CharacterProps>(
   function Character({ expression, hasNewMessage, isDragging, skinConfig, onMouseEnter, onMouseLeave }, ref) {
+    const [spriteFrame, setSpriteFrame] = useState(0);
+    let spriteAnim: { startFrame: number; endFrame: number; fps: number } | null = null;
+
     // Determine image source based on skin config
     let imgSrc = mamaPng;
-    let spriteStyle: CSSProperties | null = null;
+    let spriteBgStyle: CSSProperties | null = null;
 
     if (skinConfig) {
       switch (skinConfig.mode) {
         case 'single':
-          if (skinConfig.singleImagePath) imgSrc = `file://${skinConfig.singleImagePath}`;
+          if (skinConfig.singleImagePath) imgSrc = toFileUrl(skinConfig.singleImagePath);
           break;
         case 'per-mood':
           if (skinConfig.moodImages?.[expression]) {
-            imgSrc = `file://${skinConfig.moodImages[expression]}`;
+            imgSrc = toFileUrl(skinConfig.moodImages[expression]!);
           }
           break;
         case 'spritesheet':
           if (skinConfig.spritesheet) {
-            const { imagePath, frameWidth, frameHeight, moodMap } = skinConfig.spritesheet;
-            const frame = moodMap[expression];
-            if (frame) {
-              imgSrc = `file://${imagePath}`;
-              spriteStyle = {
-                objectFit: 'none' as const,
-                width: frameWidth,
-                height: frameHeight,
-                objectPosition: `${-frame.col * frameWidth}px ${-frame.row * frameHeight}px`,
+            const { imagePath, columns, rows, moodMap } = skinConfig.spritesheet;
+            const anim = moodMap?.[expression];
+            if (anim) {
+              const frameCount = anim.endFrame - anim.startFrame + 1;
+              const displayFrame = frameCount > 1 ? anim.startFrame + (spriteFrame % frameCount) : anim.startFrame;
+              const col = displayFrame % columns;
+              const row = Math.floor(displayFrame / columns);
+              spriteBgStyle = {
+                width: '100%',
+                height: '100%',
+                backgroundImage: `url(${toFileUrl(imagePath)})`,
+                backgroundSize: `${columns * IMG_W}px ${rows * IMG_H}px`,
+                backgroundPosition: `${-col * IMG_W}px ${-row * IMG_H}px`,
+                backgroundRepeat: 'no-repeat',
+                imageRendering: 'pixelated' as const,
               };
+              spriteAnim = anim;
             }
           }
           break;
       }
     }
+
+    // Sprite animation timer
+    useEffect(() => {
+      if (!spriteAnim || spriteAnim.startFrame === spriteAnim.endFrame) {
+        setSpriteFrame(0);
+        return;
+      }
+      const interval = setInterval(() => {
+        setSpriteFrame((prev) => prev + 1);
+      }, 1000 / spriteAnim.fps);
+      return () => clearInterval(interval);
+    }, [spriteAnim?.startFrame, spriteAnim?.endFrame, spriteAnim?.fps]);
 
     const hitAreaStyle: CSSProperties = {
       position: 'relative',
@@ -251,10 +274,9 @@ export const Character = forwardRef<HTMLDivElement, CharacterProps>(
       height: '100%',
       objectFit: 'contain',
       imageRendering: 'pixelated',
-      ...(expression === 'sleeping' ? { filter: 'brightness(0.85) saturate(0.7)', opacity: 0.8 } : {}),
-      ...(expression === 'angry' ? { filter: 'saturate(1.2) brightness(1.05)' } : {}),
-      ...(expression === 'proud' ? { filter: 'brightness(1.1) saturate(1.1)' } : {}),
-      ...(spriteStyle ?? {}),
+      ...(!spriteBgStyle && expression === 'sleeping' ? { filter: 'brightness(0.85) saturate(0.7)', opacity: 0.8 } : {}),
+      ...(!spriteBgStyle && expression === 'angry' ? { filter: 'saturate(1.2) brightness(1.05)' } : {}),
+      ...(!spriteBgStyle && expression === 'proud' ? { filter: 'brightness(1.1) saturate(1.1)' } : {}),
     };
 
     const auraStyle = MOOD_AURA[expression];
@@ -268,8 +290,8 @@ export const Character = forwardRef<HTMLDivElement, CharacterProps>(
       >
         <div style={containerStyle}>
           {auraStyle && <div style={auraStyle as CSSProperties} />}
-          <img src={imgSrc} alt="Claude Mama" style={imgStyle} draggable={false} />
-          <MoodOverlay expression={expression} />
+          {spriteBgStyle ? <div style={spriteBgStyle} /> : <img src={imgSrc} alt="Claude Mama" style={imgStyle} draggable={false} />}
+          {!spriteBgStyle && <MoodOverlay expression={expression} />}
         </div>
         {hasNewMessage && (
           <div style={{

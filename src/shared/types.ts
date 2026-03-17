@@ -111,11 +111,19 @@ export interface SkinConfig {
     imagePath: string;
     columns: number;
     rows: number;
-    frameWidth: number;   // naturalWidth / columns — calculated at upload time
-    frameHeight: number;  // naturalHeight / rows — calculated at upload time
-    moodMap: Record<Expression, { col: number; row: number }>;
+    imageWidth: number;   // original image natural width
+    imageHeight: number;  // original image natural height
+    frameWidth: number;   // imageWidth / columns
+    frameHeight: number;  // imageHeight / rows
+    moodMap: Record<Expression, { startFrame: number; endFrame: number; fps: number }>;
   };
 }
+
+/** Result from skin image upload */
+export type SkinUploadResponse =
+  | { ok: true; path: string; width: number; height: number }
+  | { ok: false; error: 'file_too_large' | 'invalid_format' }
+  | null;
 
 /** IPC channel names */
 export const IPC_CHANNELS = {
